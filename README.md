@@ -6,4 +6,4 @@ Code and link to data to reproduce diagnostics and figures for submitted manuscr
 Link to Zenodo repository with data: 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.xxxxxxx.svg)](https://doi.org/10.5281/zenodo.17351379)
 
-![Languages](https://img.shields.io/github/languages/top/username/repo.svg)
+![Python,NCL](https://img.shields.io/github/languages/top/username/repo.svg)

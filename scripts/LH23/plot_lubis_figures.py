@@ -63,51 +63,6 @@ def compute_leading_pc_projection(u_anomalies, lat_coord='lat', time_coord='time
     return pc1, u_anomalies_projection
 
 # %%
-# Reading the input file
-from scipy import stats
-from scipy.linalg import eigh 
-
-def lead_lag_correlation(data1, data2, max_lag=None):
-    """
-    Compute lead-lag correlation between two xarray DataArrays or numpy arrays along time axis.
-
-    Parameters:
-    data1, data2 : xarray.DataArray or numpy.ndarray
-        Time series data with the time dimension on axis 0.
-    max_lag : int, optional
-        Maximum number of lags to compute. If None, will compute all possible lags.
-
-    Returns:
-    lags : numpy.ndarray
-        Array of lag values.
-    correlations : numpy.ndarray
-        Cross-correlation values normalized by the product of the standard deviations.
-    """
-    # Ensure data are numpy arrays
-    data1 = np.asarray(data1)
-    data2 = np.asarray(data2)
-
-    # Compute length of time axis
-    n_time = data1.shape[0]
-
-    # Compute the cross-correlation
-    corr = correlate(data1 - np.mean(data1), data2 - np.mean(data2), mode='full')
-
-    # Normalize by the standard deviations and the number of points
-    corr /= (np.std(data1) * np.std(data2) * n_time)
-
-    # Create an array of lag values
-    lags = np.arange(-n_time + 1, n_time)
-
-    # Optionally limit the lags to max_lag
-    if max_lag is not None:
-        lag_mask = np.abs(lags) <= max_lag
-        lags = lags[lag_mask]
-        corr = corr[lag_mask]
-
-    return corr
-
-# %%
 from scipy import stats
 from scipy.linalg import eigh 
 
@@ -240,25 +195,6 @@ def red_noise_spectrum_with_confidence(r, f, window_size, overlap, sigma2=1.0, c
 def estimate_ar1(x):
     x = x - np.mean(x)
     return np.corrcoef(x[1:], x[:-1])[0, 1]
-
-
-# %%
-def compute_eof(ds):
-    u = ds.sel(lat=slice(-80, -20)).squeeze()
-    #u = (u.groupby('time.dayofyear') - u.groupby('time.dayofyear').mean('time')).squeeze
-    print(u)
-
-    u_detrend = xr.apply_ufunc(detrend, 
-                                u,
-                                input_core_dims=[['time']],
-                                output_core_dims=[['time']],
-                                    vectorize=True,
-                                    dask='parallelized',
-                                    )
-
-    wgt_u = np.sqrt(np.cos(np.deg2rad(u.lat)))
-    solver = Eof(u.transpose('time','lat'), weights=wgt_u)
-    return solver
 
 def apply_hanning_taper(time_series, segment_length=1052, overlap=500):
     """
@@ -708,28 +644,10 @@ def validate_confidence_bounds(data_length=12419, window_size=1052, overlap=500)
     print(f"Lubis DOF~29: Lower ratio: {ratio_lower_lubis:.3f}, Upper ratio: {ratio_upper_lubis:.3f}")
     print(f"Your DOF~{dof}: Lower ratio: {ratio_lower:.3f}, Upper ratio: {ratio_upper:.3f}")
 
-# Run validation
-validate_confidence_bounds()
-
 # %%
-import pandas as pd
-
-def preprocess(file):
-        eof_results = xr.open_dataset(file, decode_times=False).squeeze()
-        print(eof_results)
-        eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D')
-        z1 = eof_results['z1'] #.dropna('time')
-        z1.coords['mode'] = [0,1]
-        z1 = z1.where( z1 > -500, drop=True)
-        return z1
-
-cesm2_waccm = preprocess('./z1/z1_CESM2-WACCM_20250928.nc')
-cesm2_waccm
-
-# %%
-def create_four_panel_lubis_figure(era5_data, amip_data, ace2_data, ngcm1_data, 
+def create_four_panel_lubis_figure(era5_data, amip_data, ace2_data, ngcm_data, 
                                    window_size=1052, overlap=500,  # Lubis methodology: 1052-day segments, 500-day overlap
-                                   time_slice='1979-01-01:2005-12-31',  # 27 years for DOF~29
+                                   time_slice='1980-01-01:2014-12-31',  # 27 years for DOF~29
                                    save_path=None):
     """
     Create four-panel figure in Lubis et al. (2023) style showing power spectra
@@ -737,7 +655,7 @@ def create_four_panel_lubis_figure(era5_data, amip_data, ace2_data, ngcm1_data,
     
     Parameters:
     -----------
-    era5_data, amip_data, ace2_data, ngcm1_data : xarray.Dataset
+    era5_data, amip_data, ace2_data, ngcm_data : xarray.Dataset
         Input datasets with 'pcs' variable containing EOF principal components
     window_size : int, default 1052
         Window size for Welch's method (Lubis methodology: 1052-day segments)
@@ -763,7 +681,7 @@ def create_four_panel_lubis_figure(era5_data, amip_data, ace2_data, ngcm1_data,
         ('ERA5', era5_data, 'black'),
         ('AMIP', amip_data, 'tab:orange'), 
         ('ACE2', ace2_data, 'tab:red'),
-        ('NGCM2.8', ngcm1_data, 'tab:blue')
+        ('NGCM2.8', ngcm_data, 'tab:blue')
     ]
     
     def process_and_plot(ax, name, data, color, label):
@@ -951,51 +869,6 @@ def create_four_panel_lubis_figure(era5_data, amip_data, ace2_data, ngcm1_data,
 # %%
 import pandas as pd
 
-def preprocess(file):
-        eof_results = xr.open_dataset(file, decode_times=False).squeeze()
-        print(eof_results)
-        eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D')
-        z1 = eof_results['z1'] #.dropna('time')
-        z1.coords['mode'] = [0,1]
-        z1 = z1.where( z1 > -500, drop=True)
-        return z1
-
-era5_new = preprocess('./z1/z1_ERA5_20250928.nc')
-era5_new
-
-
-# %%
-def preprocess(file, idx):
-        eof_results = xr.open_dataset(file, decode_times=False).squeeze()
-        print(eof_results)
-        eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D') #+ pd.Timedelta(days=10*idx)
-        z1 = eof_results['z1'] #.dropna('time')
-        z1.coords['mode'] = [0,1]
-        z1 = z1.where( z1 > -500, drop=True)
-        return z1.sel(time=slice('1981-01-01','2014-12-31'))
-
-files = sorted(glob.glob('./z1/*csp*.nc'))
-ngcm_new = [preprocess(files[i], idx) for idx, i in enumerate(range(len(files))) if '2.8' in files[i]]
-ngcm_new = xr.concat(ngcm_new, dim='member_id')
-ngcm_new.coords['member_id'] = np.arange(1,38,step=1)
-ngcm_new
-
-# %%
-def preprocess(file, idx):
-        eof_results = xr.open_dataset(file, decode_times=False).squeeze()
-        print(eof_results)
-        eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D') #+ pd.Timedelta(days=10*idx)
-        z1 = eof_results['z1'] #.dropna('time')
-        z1.coords['mode'] = [0,1]
-        z1 = z1.where( z1 > -500, drop=True)
-        return z1.sel(time=slice('1981-01-01','2014-12-31'))
-
-files = sorted(glob.glob('./z1/*eastward*.nc'))
-ace2_new = [preprocess(files[i], idx) for idx, i in enumerate(range(len(files))) if 'eastward' in files[i]]
-ace2_new = xr.concat(ace2_new, dim='member_id')
-ace2_new.coords['member_id'] = np.arange(1,38,step=1)
-ace2_new
-
 # %%
 # %%
 def preprocess(file, idx):
@@ -1007,13 +880,6 @@ def preprocess(file, idx):
         z1 = z1.where( z1 > -500, drop=True)
         print(np.mean(z1.values))
         return z1.sel(time=slice('1981-01-01','2014-12-31'))
-
-files = sorted(glob.glob('./z1/*ua_CMIP6*.nc'))
-amip_new = [preprocess(files[i], idx) for idx, i in enumerate(range(len(files))) if 'ua_CMIP6' in files[i]]
-amip_new = xr.concat(amip_new, dim='member_id')
-amip_new.coords['member_id'] = np.arange(1,34,step=1)
-amip_new
-
 # %%
 # Alternative simplified usage if you have the data loaded:
 def create_lubis_four_panel_simple():
@@ -1024,14 +890,14 @@ def create_lubis_four_panel_simple():
         'era5': era5_new,      # Replace with your ERA5 data variable name
         'amip': amip_new.drop_sel(member_id=12),      # Replace None with your AMIP data or keep None if not available
         'ace2': ace2_new,      # Replace with your ACE2 data variable name  
-        'ngcm1': ngcm_new          # Replace None with your NGCM1 data or keep None if not available
+        'ngcm': ngcm_new          # Replace None with your NGCM1 data or keep None if not available
     }
 
     fig = create_four_panel_lubis_figure(
         era5_data=datasets_dict['era5'],
         amip_data=datasets_dict['amip'], 
         ace2_data=datasets_dict['ace2'],
-        ngcm1_data=datasets_dict['ngcm1'],
+        ngcm_data=datasets_dict['ngcm'],
         window_size=1052,
         overlap=500,
         time_slice='1981-01-01:2014-12-31',
@@ -1296,8 +1162,8 @@ plt.tight_layout()
 
 ax = fig.add_subplot(gs[1,1])
 
-p = ngcm1['r'].mean('member_id').plot.contourf(yincrease=False,robust=True,cmap='RdBu_r',extend='neither',levels=np.arange(-1.0,1.1,0.1),add_colorbar=False)
-c = ngcm1['r'].mean('member_id').plot.contour(yincrease=False,robust=True,colors='k',extend='neither',linewidths=0.7,levels=np.arange(-1.0,1.1,0.1),add_colorbar=False)
+p = ngcm['r'].mean('member_id').plot.contourf(yincrease=False,robust=True,cmap='RdBu_r',extend='neither',levels=np.arange(-1.0,1.1,0.1),add_colorbar=False)
+c = ngcm['r'].mean('member_id').plot.contour(yincrease=False,robust=True,colors='k',extend='neither',linewidths=0.7,levels=np.arange(-1.0,1.1,0.1),add_colorbar=False)
 
 ax.text(0.0, 1.15, 'd', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
 ax.set_ylim([-25,-80])
@@ -1307,13 +1173,13 @@ plt.tight_layout()
 
 plt.savefig('../../plots/Lubis_correlations-v1.png',dpi=300)
 # %%
-def create_lubis_figure_5c(era5_data, amip_data, ace2_data, ngcm1_data, save_path=None):
+def create_lubis_figure_5c(era5_data, amip_data, ace2_data, ngcm_data, save_path=None):
     """
     Create a clean four-panel figure with shared colorbar matching Lubis et al. (2023) Figure 5c style.
     
     Parameters:
     -----------
-    era5_data, amip_data, ace2_data, ngcm1_data : xarray.Dataset
+    era5_data, amip_data, ace2_data, ngcm_data : xarray.Dataset
         Input datasets containing 'r' variable for lead-lag correlations
     save_path : str, optional
         Path to save the figure
@@ -1369,7 +1235,7 @@ def create_lubis_figure_5c(era5_data, amip_data, ace2_data, ngcm1_data, save_pat
             'position': gs[1, 0]
         },
         {
-            'data': ngcm1_data['r'].mean('member_id'),
+            'data': ngcm_data['r'].mean('member_id'),
             'title': 'NeuralGCM',
             'label': 'd',
             'position': gs[1, 1]
@@ -1430,15 +1296,43 @@ def create_lubis_figure_5c(era5_data, amip_data, ace2_data, ngcm1_data, save_pat
     
     return fig
 
-# %%
-# Clean usage - replace your existing plotting code with:
-fig = create_lubis_figure_5c(
-    era5_data=era5_new,
-    amip_data=amip, 
-    ace2_data=ace2,
-    ngcm1_data=ngcm1,
-    save_path='../../plots/Lubis_correlations-v2.png'
-)
-plt.show()
+def preprocess(file):
+        eof_results = xr.open_dataset(file, decode_times=False).squeeze()
+        print(eof_results)
+        eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D')
+        z1 = eof_results['z1'] #.dropna('time')
+        z1.coords['mode'] = [0,1]
+        z1 = z1.where( z1 > -500, drop=True)
+        return z1
+
+def main():
+    era5 = preprocess(sorted(glob.glob('./z1/z1_ERA5_*.nc'))[-1])
+
+    files = sorted(glob.glob('./z1/*ua_CMIP6*.nc'))
+    amip = [preprocess(files[i], idx) for idx, i in enumerate(range(len(files))) if 'ua_CMIP6' in files[i]]
+    amip = xr.concat(amip, dim='member_id')
+    amip.coords['member_id'] = np.arange(1,len(files)+1,step=1)
+
+    files = sorted(glob.glob('./z1/*csp*.nc'))
+    ngcm = [preprocess(files[i], idx) for idx, i in enumerate(range(len(files))) if '2.8' in files[i]]
+    ngcm = xr.concat(ngcm, dim='member_id')
+    ngcm.coords['member_id'] = np.arange(1,38,step=1)
+
+    files = sorted(glob.glob('./z1/*eastward*.nc'))
+    ace2 = [preprocess(files[i], idx) for idx, i in enumerate(range(len(files))) if 'eastward' in files[i]]
+    ace2 = xr.concat(ace2, dim='member_id')
+    ace2.coords['member_id'] = np.arange(1,38,step=1)
+
+    # Plot Figure S6
+    fig = create_lubis_figure_5c(
+        era5_data=era5,
+        amip_data=amip, 
+        ace2_data=ace2,
+        ngcm_data=ngcm,
+        save_path='../../plots/Lubis_correlations.png'
+    )
 
 # %%
+if __name__ == '__main__':
+    main()
+

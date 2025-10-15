@@ -2,33 +2,13 @@
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-from eofs.xarray import Eof
-from scipy.signal import periodogram, welch
-import psutil  # For memory profiling
-#from eofs.xarray import Eof
+
 import glob as glob
-from scipy.signal import periodogram
-from scipy.interpolate import interp1d
 from scipy.signal import correlate
 from matplotlib.gridspec import GridSpec
-from eofs.xarray import Eof
-from scipy.signal import detrend
-import scipy.signal as sig
-from scipy.stats import chi2
 import pandas as pd
 
-import gc
-
 # %%
-def print_memory_usage(stage):
-    """Print memory usage at different stages."""
-    process = psutil.Process()
-    memory_info = process.memory_info()
-    print(f"[{stage}] Memory usage: {memory_info.rss / (1024 ** 2) / 1000} GB")  # Memory usage in MB
-
-# %%
-from scipy import stats
-from scipy.linalg import eigh 
 
 def lead_lag_correlation(data1, data2, max_lag=None):
     """
@@ -100,150 +80,138 @@ def compute_modes_v2(z1):
         return xr.Dataset(dict(z2z1=z2z1, z1z1=z1z1, pcs=pcs))
 
 # %%
-def create_lubis_figure_5c(era5_data, amip_data, ace2_data, ngcm_data, save_path=None):
-    fig = plt.figure(figsize=(7.5,9))
-    gs = GridSpec(3,2,figure=fig,hspace=0.3, wspace=0.25,top=0.94,bottom=0.05, left=0.08, right=0.98)
-    ax = fig.add_subplot(gs[2,1])
+def plot_panel(ax, data_cross, era5_cross, member_cross, color, label, 
+               correlation_type='z1z1', lag=120, panel_label='a', show_leads=False):
+    """
+    Plot a single panel of cross-correlations or autocorrelations.
+    
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        Axes to plot on.
+    data_cross : xarray.Dataset
+        Full dataset with member_id dimension.
+    era5_cross : xarray.Dataset
+        ERA5 reference data.
+    member_cross : xarray.Dataset
+        Ensemble mean or processed data.
+    color : str
+        Color for the model line.
+    label : str
+        Label for the model.
+    correlation_type : str
+        Either 'z1z1' or 'z2z1'.
+    lag : int
+        Maximum lag to plot.
+    panel_label : str
+        Panel label (a, b, c, etc.).
+    show_leads : bool
+        Whether to show "z1 leads" and "z2 leads" annotations.
+    """
+    # Plot individual members in gray
+    for i in range(len(data_cross.member_id)):
+        data_cross[correlation_type].sel(lag=slice(-lag, lag)).isel(member_id=i).plot.line(
+            x='lag', c='silver', add_legend=False, ax=ax
+        )
+
+    # Plot ERA5
+    era5_cross[correlation_type].sel(lag=slice(-lag, lag)).plot(
+        c='k', linewidth=2.5, label='ERA5', ax=ax
+    )
+
+    # Plot ensemble mean
+    member_cross[correlation_type].mean('member_id').sel(lag=slice(-lag, lag)).plot(
+        c=color, linewidth=1.5 if color != '#1E88E5' else 2.5, 
+        linestyle='-', label=label, ax=ax
+    )
+
+    # Formatting
+    title = f'{label} $\\mathrm{{{correlation_type[:-2]}_{{{correlation_type[-2]}}}{correlation_type[-1]}}}$'
+    if correlation_type == 'z1z1':
+        title = f'{label} $\\mathrm{{z_{{1}}}}$ autocorrelation'
+    
+    ax.set_title(title)
+    ax.set_xlabel('Lag (days)' if 'NGCM' in label else '')
+    ax.axhline(0, linestyle='--', c='k', linewidth=0.7)
+    ax.axvline(0, linestyle='--', c='k', linewidth=0.7)
+    ax.set_xlim([-40, 40])
+    
+    if correlation_type == 'z2z1':
+        ax.set_ylim([-0.25, 0.25])
+        if show_leads:
+            ax.text(0.12, 0.8, 'z2 leads', transform=ax.transAxes, fontsize=12, va='top')
+            ax.text(0.65, 0.2, 'z1 leads', transform=ax.transAxes, fontsize=12, va='top')
+    else:
+        ax.set_ylim([-0.1, 1.0])
+    
+    ax.text(-0.1, 1.15, panel_label, transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
+    ax.minorticks_on()
+    ax.legend(fontsize=10, frameon=False)
+
+
+# %%
+def create_lubis_cross_correlations(era5_cross, amip_cross, ace2_cross, ngcm_cross, 
+                                    amip, ace2, ngcm, save_path=None):
+    """
+    Create the full Lubis cross-correlation figure.
+    
+    Parameters:
+    -----------
+    era5_cross : xarray.Dataset
+        ERA5 cross-correlations.
+    amip_cross : xarray.Dataset
+        AMIP cross-correlations with member_id dimension.
+    ace2_cross : xarray.Dataset
+        ACE2 cross-correlations with member_id dimension.
+    ngcm_cross : xarray.Dataset
+        NeuralGCM cross-correlations with member_id dimension.
+    amip, ace2, ngcm : xarray.Dataset
+        Original datasets (for accessing member info).
+    save_path : str, optional
+        Path to save the figure.
+        
+    Returns:
+    --------
+    matplotlib.figure.Figure
+        The created figure.
+    """
+    fig = plt.figure(figsize=(7.5, 9))
+    gs = GridSpec(3, 2, figure=fig, hspace=0.3, wspace=0.25, 
+                  top=0.94, bottom=0.05, left=0.08, right=0.98)
+
     lag = 120
-    for i in range(37):
-        #if ngcm1['z2z1'].sel(lag=-30).isel(member_id=i) > 0:
-            #(-ngcm1['z2z1'].sel(lag=slice(-40,40)).isel(member_id=i)).plot.line(x='lag',c='silver',add_legend=False)
-            #(-ngcm2['z2z1'].sel(lag=slice(-40,40)).isel(member_id=i)).plot.line(x='lag',c='silver',add_legend=False)
-        #else:
-            ngcm_cross['z2z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-            #ngcm2['z2z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
 
-    era5_cross['z2z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=2.5,label='ERA5')
+    # AMIP panels
+    ax_amip_z1 = fig.add_subplot(gs[0, 0])
+    plot_panel(ax_amip_z1, amip_cross, era5_cross, amip_cross, 'tab:orange', 
+               'AMIP', 'z1z1', lag, 'a')
 
-    ngcm_cross['z2z1'].sel(lag=slice(-lag,lag)).mean('member_id').plot(c='#1E88E5',linestyle='-',linewidth=2.5,label='NeuralGCM')
-    #ngcm2['z2z1'].sel(lag=slice(-lag,lag)).mean('member_id').plot(c='#1E88E5',linewidth=2.5,label='NeuralGCM')
+    ax_amip_z2z1 = fig.add_subplot(gs[0, 1])
+    plot_panel(ax_amip_z2z1, amip_cross, era5_cross, amip_cross, 'tab:orange', 
+               'AMIP', 'z2z1', lag, 'b', show_leads=True)
 
-    #erai['z2z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=1.5,linestyle='--',label='ERA-Interim')
-    ax.set_title(r'NGCM2.8 $\mathrm{z_{2}z_{1}}$')
-    ax.set_xlabel('Lag (days)')
-    ax.axhline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.axvline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.set_ylim([-0.25,0.25])
-    ax.set_xlim([-40,40])
-    ax.text(-0.1, 1.15, 'f', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
-    ax.minorticks_on()
-    ax.text(0.12, 0.8, 'z2 leads', transform=ax.transAxes, fontsize=12, va='top')
-    ax.text(0.65, 0.2, 'z1 leads', transform=ax.transAxes, fontsize=12, va='top')
+    # ACE2 panels
+    ax_ace2_z1 = fig.add_subplot(gs[1, 0])
+    plot_panel(ax_ace2_z1, ace2_cross, era5_cross, ace2_cross, '#D81B60', 
+               'ACE2-ERA5', 'z1z1', lag, 'c')
 
-    ax = fig.add_subplot(gs[2,0])
-    for i in range(37):
-        ngcm_cross['z1z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-        #ngcm2['z1z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',linewidth=0.7,add_legend=False)
+    ax_ace2_z2z1 = fig.add_subplot(gs[1, 1])
+    plot_panel(ax_ace2_z2z1, ace2_cross, era5_cross, ace2_cross, '#D81B60', 
+               'ACE2-ERA5', 'z2z1', lag, 'd', show_leads=True)
 
-    #erai['z1z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=1.5,linestyle='--')
-    era5_cross['z1z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=2.5,label='ERA5')
+    # NGCM panels
+    ax_ngcm_z1 = fig.add_subplot(gs[2, 0])
+    plot_panel(ax_ngcm_z1, ngcm_cross, era5_cross, ngcm_cross, '#1E88E5', 
+               'NGCM2.8', 'z1z1', lag, 'e')
 
-    ngcm_cross['z1z1'].sel(lag=slice(-lag,lag)).mean('member_id').plot(c='#1E88E5',linestyle='-',linewidth=2.5,label='NGCM2.8')
-    #ngcm2['z1z1'].sel(lag=slice(-lag,lag)).mean('member_id').plot(c='#1E88E5',linewidth=2.5)
-
-    ax.set_title(r'NGCM2.8 $\mathrm{z_{1}}$ autocorrelation')
-    ax.set_xlabel('Lag (days)')
-    ax.axhline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.axvline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.set_xlim([-40,40])
-    ax.set_ylim([-0.1,1.0])
-    ax.text(-0.1, 1.15, 'e', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
-    ax.minorticks_on()
-    plt.legend(fontsize=10, frameon=False)
-
-    ax = fig.add_subplot(gs[1,1])
-    for i in range(len(ace2.member_id)):
-        ace2_cross['z2z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-        ace2_cross['z2z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-
-    era5_cross['z2z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=2.5,label='ERA5')
-
-    ace2_cross['z2z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='#D81B60',linewidth=1.5,label='ACE2-ERA5')
-    #ace2_train['z2z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='tab:green',linewidth=1.5,label='ACE2-ERA5 [2011-2017]')
-
-    #erai['z2z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=1.5,linestyle='--',label='ERA-Interim')
-    ax.set_title(r'ACE2-ERA5 $\mathrm{z_{2}z_{1}}$')
-    ax.set_xlabel('')
-    ax.axhline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.axvline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.set_ylim([-0.25,0.25])
-    ax.set_xlim([-40,40])
-    ax.text(-0.05, 1.15, 'd', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
-    ax.text(0.12, 0.8, 'z2 leads', transform=ax.transAxes, fontsize=12, va='top')
-    ax.text(0.65, 0.2, 'z1 leads', transform=ax.transAxes, fontsize=12, va='top')
-    ax.minorticks_on()
-    ax = fig.add_subplot(gs[1,0])
-    for i in range(len(ace2.member_id)):
-        ace2['z1z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-
-    era5_cross['z1z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=2.5,label='ERA5')
-
-    ace2_cross['z1z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='#D81B60',linewidth=1.5,label='ACE2-ERA5')
-    #ace2_train['z1z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='tab:green',linewidth=1.5,label='ACE2-ERA5 [2011-2017]')
-
-    #erai['z1z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=1.5,linestyle='--',label='ERA-I ')
-    ax.set_title(r'ACE2-ERA5 $\mathrm{z_{1}}$ autocorrelation')
-    ax.set_xlabel('')
-    ax.axhline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.axvline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.set_xlim([-40,40])
-    ax.set_ylim([-0.1,1.0])
-    ax.text(-0.1, 1.15, 'c', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
-    ax.minorticks_on()
-    plt.legend(fontsize=10, frameon=False)
-
-    ax = fig.add_subplot(gs[0,1])
-    for i in range(len(amip.member_id)):
-        amip_cross['z2z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-
-    #cmip['z2z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='tab:purple',linewidth=1.5,label='CMIP')
-
-    amip_cross['z2z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='tab:orange',linewidth=1.5,label='AMIP')
-    #ace2_train['z2z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='tab:green',linewidth=1.5,label='ACE2-ERA5 [2011-2017]')
-
-    #erai['z2z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=1.5,linestyle='--',label='ERA-Interim')
-    era5_cross['z2z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=2.5,label='ERA5')
-
-    ax.set_title(r'AMIP $\mathrm{z_{2}z_{1}}$')
-    ax.set_xlabel('')
-    ax.axhline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.axvline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.set_ylim([-0.25,0.25])
-    ax.set_xlim([-40,40])
-    ax.text(-0.1, 1.15, 'b', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
-    ax.text(0.65, 0.2, 'z1 leads', transform=ax.transAxes, fontsize=12, va='top')
-    ax.text(0.12, 0.8, 'z2 leads', transform=ax.transAxes, fontsize=12, va='top')
-    ax.minorticks_on()
-
-    amip_member_ids = amip.member_id.values
-
-    ax = fig.add_subplot(gs[0,0])
-    for i in range(len(amip_member_ids)):
-        amip_cross['z1z1'].sel(lag=slice(-lag,lag)).isel(member_id=i).plot.line(x='lag',c='silver',add_legend=False)
-
-    era5_cross['z1z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=2.5,label='ERA5')
-
-
-    #cmip['z1z1'].sel(lag=slice(-lag,lag)).mean('member_id').plot(c='tab:purple',linewidth=1.5,label='CMIP')
-
-    amip_cross['z1z1'].sel(lag=slice(-lag,lag)).mean('member_id').plot(c='tab:orange',linewidth=1.5,label='AMIP')
-    #ace2_train['z1z1'].mean('member_id').sel(lag=slice(-lag,lag)).plot(c='tab:green',linewidth=1.5,label='ACE2-ERA5 [2011-2017]')
-
-    #erai['z1z1'].sel(lag=slice(-lag,lag)).plot(c='k',linewidth=1.5,linestyle='--',label='ERA-I ')
-    ax.set_title(r'AMIP $\mathrm{z_{1}}$ autocorrelation')
-    ax.set_xlabel('')
-    ax.axhline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.axvline(0,linestyle='--',c='k',linewidth=0.7)
-    ax.set_xlim([-40,40])
-    ax.set_ylim([-0.1,1.0])
-    #ax.set_ylim([-0.25,0.25])
-    ax.text(-0.1, 1.15, 'a', transform=ax.transAxes, fontsize=16, fontweight='bold', va='top')
-    ax.minorticks_on()
-
-    plt.legend(fontsize=10, frameon=False)
+    ax_ngcm_z2z1 = fig.add_subplot(gs[2, 1])
+    plot_panel(ax_ngcm_z2z1, ngcm_cross, era5_cross, ngcm_cross, '#1E88E5', 
+               'NGCM2.8', 'z2z1', lag, 'f', show_leads=True)
 
     plt.tight_layout()
-    plt.savefig('../../plots/Lubis_cross-EOF_feedbacks.png',dpi=300)
+    
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300)
     
     return fig
 
@@ -257,42 +225,58 @@ def preprocess(file):
         return z1
 
 def main():
-    era5 = preprocess(sorted(glob.glob('./z1/z1_ERA5_*.nc'))[-1])
+    """Main execution function."""
+    directory = './' #'/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/PAM/'
+    print("Loading ERA5 data...")
+    era5 = preprocess(sorted(glob.glob(f'{directory}/z1/z1_ERA5_*.nc'))[-1])
 
-    files = sorted(glob.glob('./z1/*ua_CMIP6*.nc'))
-    amip = [preprocess(files[i]) for idx, i in enumerate(range(len(files))) if 'ua_CMIP6' in files[i]]
+    # Load AMIP
+    print("Loading AMIP data...")
+    files = sorted(glob.glob(f'{directory}/z1/*ua_CMIP6*.nc'))
+    amip = [preprocess(files[i]) for i in range(len(files))]
     amip = xr.concat(amip, dim='member_id')
-    amip.coords['member_id'] = np.arange(1,len(files)+1,step=1)
+    amip.coords['member_id'] = np.arange(1, len(files) + 1)
 
-    files = sorted(glob.glob('./z1/*csp*.nc'))
-    ngcm = [preprocess(files[i]) for idx, i in enumerate(range(len(files))) if '2.8' in files[i]]
+    # Load NeuralGCM
+    print("Loading NeuralGCM data...")
+    files = sorted(glob.glob(f'{directory}/z1/*csp*.nc'))
+    ngcm = [preprocess(files[i]) for i in range(len(files)) if '2.8' in files[i]]
     ngcm = xr.concat(ngcm, dim='member_id')
-    ngcm.coords['member_id'] = np.arange(1,38,step=1)
+    ngcm.coords['member_id'] = np.arange(1, 38)
 
-    files = sorted(glob.glob('./z1/*eastward*.nc'))
-    ace2 = [preprocess(files[i]) for idx, i in enumerate(range(len(files))) if 'eastward' in files[i]]
+    # Load ACE2
+    print("Loading ACE2 data...")
+    files = sorted(glob.glob(f'{directory}/z1/*eastward*.nc'))
+    ace2 = [preprocess(files[i]) for i in range(len(files))]
     ace2 = xr.concat(ace2, dim='member_id')
-    ace2.coords['member_id'] = np.arange(1,38,step=1)
+    ace2.coords['member_id'] = np.arange(1, 38)
 
-
+    # Compute cross-correlations
+    print("Computing cross-correlations...")
     era5_cross = compute_modes_v2(era5)
-    era5_cross
 
     ace2_cross = [compute_modes_v2(ace2.sel(member_id=i)) for i in ace2.member_id]
     ace2_cross = xr.concat(ace2_cross, dim='member_id')
-    ace2_cross
 
     ngcm_cross = [compute_modes_v2(ngcm.sel(member_id=i)) for i in ngcm.member_id]
     ngcm_cross = xr.concat(ngcm_cross, dim='member_id')
-    ngcm_cross
 
     amip_cross = [compute_modes_v2(amip.sel(member_id=i)) for i in amip.member_id]
     amip_cross = xr.concat(amip_cross, dim='member_id')
-    amip_cross
 
+    # Create figure
+    print("Creating figure...")
+    save_path = '../../plots/Lubis_cross-EOF_feedbacks.png'
+    fig = create_lubis_cross_correlations(era5_cross, amip_cross, ace2_cross, ngcm_cross,
+                                         amip, ace2, ngcm, save_path)
+    plt.show()
     
+    print(f"Figure saved to {save_path}")
+
 
 # %%
 if __name__ == '__main__':
     main()
 
+
+# %%

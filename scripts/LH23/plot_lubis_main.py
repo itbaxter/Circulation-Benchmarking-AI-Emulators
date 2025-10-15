@@ -656,7 +656,7 @@ def preprocess(file):
 
 # %%
 def main():
-    test_directory = '/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/PAM/'
+    test_directory = './' # Add file
     era5 = preprocess(sorted(glob.glob(f'{test_directory}z1/z1_ERA5_*.nc'))[-1])
 
     files = sorted(glob.glob(f'{test_directory}z1/*ua_CMIP6*.nc'))

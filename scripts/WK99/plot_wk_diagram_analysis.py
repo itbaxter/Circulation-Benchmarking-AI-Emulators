@@ -1,3 +1,6 @@
+"""
+Uses code from Brian Mederios: https://github.com/brianpm/wavenumber_frequency
+"""
 
 # %%
 import xarray as xr

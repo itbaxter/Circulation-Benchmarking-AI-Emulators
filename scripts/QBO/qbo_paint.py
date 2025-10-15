@@ -70,9 +70,6 @@ era5 = era5.compute()
 files = sorted(glob.glob('/scratch/midway3/itbaxter/NeuralGCM_Decadal_Simulations/amip/64x128/ua/ua*nc'))
 files
 
-# %%
-files[20]
-
 #%%
 
 def preprocess_amip(ds):
@@ -204,8 +201,4 @@ plt.savefig('/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/plots/qbo_c
 files = glob.glob('/project/tas1/ockham/data1/data1/tas/climate_2.8_csp_pe/*zarr')
 files
 
-# %%
-#ds = xr.open_dataset(files[0],engine='zarr')['u_component_of_wind'].resample(time='1MS').mean('time').squeeze()
-#ds
 
-# %%

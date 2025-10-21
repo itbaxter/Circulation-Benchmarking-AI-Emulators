@@ -4,7 +4,7 @@ Code and link to data to reproduce diagnostics and figures for submitted manuscr
 
 Languages:
 <p align="left">
-  <a href="[https://skillicons.dev](https://www.python.org/)">
+  <a href="(https://www.python.org/)">
     <img src="https://skillicons.dev/icons?i=python,bash" />
   </a>
 </p>

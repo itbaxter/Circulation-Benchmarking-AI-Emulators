@@ -10,6 +10,9 @@ Languages:
   </a>
 </p>
 
+Preprint Available on ArXiv:
+[![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://www.arxiv.org/abs/2510.04466)
+
 Link to Zenodo repository with data: 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17351379.svg)](https://doi.org/10.5281/zenodo.17351379)
 

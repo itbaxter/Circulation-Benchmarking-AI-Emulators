@@ -2,7 +2,8 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) 
 Code and link to data to reproduce diagnostics and figures for submitted manuscript, "Benchmarking atmospheric circulation variability in an AI emulator, ACE2, and a hybrid model, NeuralGCM"
 
-<p align="center">
+Languages:
+<p align="left">
   <a href="https://skillicons.dev">
     <img src="https://skillicons.dev/icons?i=python,bash" />
   </a>

@@ -1,5 +1,9 @@
 # Circulation-Benchmarking-AI-Emulators
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) 
+Preprint Available on ArXiv:
+[![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://www.arxiv.org/abs/2510.04466)
+
+Link to Zenodo repository with data: 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17351379.svg)](https://doi.org/10.5281/zenodo.17351379)
 
 Code and link to data to reproduce diagnostics and figures for submitted manuscript, "Benchmarking atmospheric circulation variability in an AI emulator, ACE2, and a hybrid model, NeuralGCM"
 
@@ -9,12 +13,6 @@ Python3.12 and Bash used to run code:
     <img src="https://skillicons.dev/icons?i=python,bash" />
   </a>
 </p>
-
-Preprint Available on ArXiv:
-[![arXiv](https://img.shields.io/badge/arXiv-1234.56789-b31b1b.svg)](https://www.arxiv.org/abs/2510.04466)
-
-Link to Zenodo repository with data: 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17351379.svg)](https://doi.org/10.5281/zenodo.17351379)
 
 
 ## Metrics
@@ -34,3 +32,5 @@ Extratropical atmospheric dynamics is dominated by the interactions of eddies (d
 
 ## 4. [Poleward propagation of the Southern Annular Mode (SAM)](scripts/LH23)
 The large-scale circulation in the Southern Hemisphere is dominated by the Southern Annular Mode (SAM), which has a 150-day periodicity ([Lubis & Hassanzadeh, 2023](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022AV000833)). The timescale of the annular mode is determined by wave-mean flow interactions in the extratropics. Eddy feedbacks and their timescales has been used to evaluate the variability of physics-based models ([Gerber et al., 2008](agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2008GL035712)). Here, we follow the approach in [Lubis & Hassanzadeh (2023)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022AV000833) to compute the propagation of SAM, using daily mean horizontal wind data at 500 hPa from ERA5, AMIP, ACE2-ERA5, and NeuralGCM from January 1981 to December 2014.
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) 

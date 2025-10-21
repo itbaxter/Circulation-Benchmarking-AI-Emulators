@@ -3,7 +3,7 @@
 
 Code and link to data to reproduce diagnostics and figures for submitted manuscript, "Benchmarking atmospheric circulation variability in an AI emulator, ACE2, and a hybrid model, NeuralGCM"
 
-Languages:
+Python3.12 and Bash used to run code:
 <p align="left">
   <a href="https://www.python.org/">
     <img src="https://skillicons.dev/icons?i=python,bash" />

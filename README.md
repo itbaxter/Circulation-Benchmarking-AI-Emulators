@@ -20,7 +20,7 @@ Link to Zenodo repository with data:
 We present 4 benchmarking metrics evaluating the capabilities of an AI Emulator (ACE2-ERA5) and a Hybrid AI-Atmospheric Model (NeuralGCM) to capture atmopsheric circulation variability.
 
 ## 1. Quasi-Biennial Oscillation (QBO)
-[Link text](#1.-Quasi-Biennial-Oscillation-(QBO))
+[Link text](#1.-quasi-biennial-oscillation-(qbo))
 
 The QBO, is characterized by the downward propagation of successive westerly and easterly winds with an average period of ∼ 28 months ([Baldwin et al., 2001](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/1999rg000073); [Anstey et al., 2022](https://www.nature.com/articles/s43017-022-00323-7)). In this study, the QBO index is defined as the monthly and latitude-weighted (10◦S to 10◦N ) mean zonal winds at 50 hPa. QBO amplitude is computed following [Richter et al. 2020](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019JD032362).
 

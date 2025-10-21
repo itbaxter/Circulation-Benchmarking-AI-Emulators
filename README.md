@@ -17,6 +17,7 @@ Link to Zenodo repository with data:
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17351379.svg)](https://doi.org/10.5281/zenodo.17351379)
 
 
+## Metrics
 We present 4 benchmarking metrics evaluating the capabilities of an AI Emulator (ACE2-ERA5) and a Hybrid AI-Atmospheric Model (NeuralGCM) to capture atmopsheric circulation variability.
 
 ## 1. [Quasi-Biennial Oscillation (QBO)](scripts/QBO)

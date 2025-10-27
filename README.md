@@ -14,6 +14,10 @@ Python3 and Bash used to run code:
   </a>
 </p>
 
+## Quick run Guide
+To recreate the figures first download and unzip the input data files from the Zenodo archive.
+Then run bash script: "./scripts/run_scripts.sh --<path to zenodo directory>". 
+This will put all figures (in png files) in the plots directory.
 
 ## Metrics
 We present 4 benchmarking metrics evaluating the capabilities of an AI Emulator (ACE2-ERA5) and a Hybrid AI-Atmospheric Model (NeuralGCM) to capture atmopsheric circulation variability.

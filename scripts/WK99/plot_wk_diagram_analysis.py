@@ -273,38 +273,38 @@ if __name__ == "__main__":
     #
     # Input file and variable
     #
-    fili = sorted(glob.glob(f"/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ace2/ace2_37full*_asymComponent.nc")) 
+    fili = sorted(glob.glob(f"./data/ace2_37full*_asymComponent.nc")) 
     print(fili)
     asymComponent = xr.open_mfdataset(fili,combine='nested',concat_dim='member_id')['asymComponent']    # Load data
 
-    era5 = xr.open_dataset('/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ngcm/era5_wk_Components.nc')['__xarray_dataarray_variable__']
+    era5 = xr.open_dataset('./data/era5_wk_Components.nc')['__xarray_dataarray_variable__']
     print(era5)
 
     era5.close()
 
-    era5_background = xr.open_dataset('/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ngcm/era5_background.nc')['__xarray_dataarray_variable__']
+    era5_background = xr.open_dataset('./data/era5_background.nc')['__xarray_dataarray_variable__']
     print(era5_background)
 
     # %%
-    fili = sorted(glob.glob(f"/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ace2/ace2_37full*_symComponent.nc")) 
+    fili = sorted(glob.glob(f"./data/ace2_37full*_symComponent.nc")) 
     vari = "PRATEsfc"
 
     symComponent = xr.open_mfdataset(fili,combine='nested',concat_dim='member_id')['symComponent']    # Load data
     print(symComponent)
-    
-    fili = sorted(glob.glob(f"/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ace2/ace2_37full*_asymComponent.nc")) 
+
+    fili = sorted(glob.glob(f"./data/ace2_37full*_asymComponent.nc")) 
     asymComponent = xr.open_mfdataset(fili,combine='nested',concat_dim='member_id')['asymComponent']    # Load data
 
-    fili = sorted(glob.glob(f"/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ace2/ace2_37full*_background.nc")) 
+    fili = sorted(glob.glob(f"./data/ace2_37full*_background.nc")) 
     background = xr.open_mfdataset(fili,combine='nested',concat_dim='member_id')['background']    # Load data
 
-    ngcm = xr.open_dataset('/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ngcm/ngcm_Components.nc')['__xarray_dataarray_variable__']
+    ngcm = xr.open_dataset('./data/ngcm/ngcm_Components.nc')['__xarray_dataarray_variable__']
     print(ngcm)
 
-    ngcm_background = xr.open_mfdataset(sorted(glob.glob(f'/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/ngcm/ngcm_background_*.nc')),combine='nested',concat_dim='member_id')['__xarray_dataarray_variable__']
+    ngcm_background = xr.open_mfdataset(sorted(glob.glob(f'./data/ngcm/ngcm_background_*.nc')),combine='nested',concat_dim='member_id')['__xarray_dataarray_variable__']
     print(ngcm_background)
 
-    fili = sorted(glob.glob(f"//scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/wavenumber_frequency/amip/*nc"))
+    fili = sorted(glob.glob(f"./data/amip/*nc"))
     amip = [xr.open_mfdataset(f,combine='nested',concat_dim='member_id')['__xarray_dataarray_variable__'].squeeze() for f in fili]
     #amip = xr.concat(amip, dim='component')
     print(amip)
@@ -363,7 +363,7 @@ if __name__ == "__main__":
 
     #plt.tight_layout()
     #if ofil is not None:
-    outPlotName = 'Fig_1.WK_diagram.png'
+    outPlotName = '../../plots/Fig_1.WK_diagram.png'
     fig.savefig(outPlotName, bbox_inches='tight', dpi=300)
 
     print(symComponent)
@@ -482,7 +482,7 @@ cb = fig.colorbar(img1, cax=cax, label='Raw background', orientation='horizontal
 
 #plt.tight_layout()
 #if ofil is not None:
-outPlotName = 'Fig_1.WK_diagram-background.png'
+outPlotName = '../../plots/Fig_1.WK_diagram-background.png'
 fig.savefig(outPlotName, bbox_inches='tight', dpi=300)
 
 
@@ -627,7 +627,7 @@ img1, pos1 = plot_normalized_background_spectrum(ngcm_background.mean('member_id
 cax = fig.add_axes([(pos0.x0+pos0.x1)/2, pos1.y0-0.08, (pos1.x1 - pos0.x0)/1.7, 0.01]) 
 cb = fig.colorbar(img0, cax=cax, label='Normalized Power', orientation='horizontal', drawedges=True, pad=0.15)
 
-plt.savefig('Fig_1.WK_diagram-background_solo.png', bbox_inches='tight', dpi=300)
+plt.savefig('../../plots/Fig_1.WK_diagram-background_solo.png', bbox_inches='tight', dpi=300)
 
 
 # %%
@@ -663,10 +663,7 @@ img1, pos1 = plot_normalized_asymmetric_spectrum(ngcm.sel(component='antisymmetr
 cax = fig.add_axes([(pos0.x0+pos0.x1)/2, pos1.y0-0.08, (pos1.x1 - pos0.x0)/1.7, 0.01]) 
 cb = fig.colorbar(img0, cax=cax, label='Normalized Power', orientation='horizontal', drawedges=True, pad=0.15)
 
-plt.savefig('Fig_1.WK_diagram-asymmetric.png', bbox_inches='tight', dpi=300)
-
-# %%
-plt.plot(swk[5, 1, 25:42], swf[5, 1, 25:42])
+plt.savefig('../../plots/Fig_1.WK_diagram-asymmetric.png', bbox_inches='tight', dpi=300)
 
 # %%
 
@@ -1252,7 +1249,7 @@ if 'asymmetric' in images and 'asymmetric' in positions:
                      orientation='horizontal', drawedges=True, pad=0.15)
 
 # Save figure
-outPlotName = 'Fig_1.WK_diagram-sym+asym.png'
+outPlotName = '../../plots/Fig_1.WK_diagram-sym+asym.png'
 fig.savefig(outPlotName, bbox_inches='tight', dpi=300)
 
 

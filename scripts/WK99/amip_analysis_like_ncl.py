@@ -7,6 +7,14 @@ import matplotlib as mpl
 import glob as glob
 
 import matplotlib.pyplot as plt
+import argparse
+
+# %%
+def parse_args():
+    parser = argparse.ArgumentParser(description='Eddy co-spectra (RH91) analysis')
+    parser.add_argument('--data_dir', type=str, default=None,
+                        help='Base data directory (expects era5/, ace2/, ngcm/, amip/ subfolders). If None, uses script-relative ../../..-data')
+    return parser.parse_args()
 
 # %%
 def wf_analysis(x, **kwargs):
@@ -128,12 +136,12 @@ if __name__ == "__main__":
     #
     # input file -- could make this a CLI argument
     #
-    #fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/ace2_era5_pminuse_rate_mjo_full_1.000000.nc" 
+    args = parse_args()
     model = 'CESM2-WACCM'
-    fili = sorted(glob.glob(f"/project/tas1/itbaxter/for-tiffany/amip/pr/pr_day_{model}_amip_r1i1p1f1*nc"))
+    fili = sorted(glob.glob(f"{args.data_dir}/pr/pr_day_{model}_amip_r1i1p1f1*nc"))
     vari = "pr"
     #
-    # Loading data ... example is very simple
+    # Loading data ... 
     #
     data = get_data(fili, vari)  # returns OLR
     print(data)
@@ -154,39 +162,19 @@ if __name__ == "__main__":
                 'dosymmetries': True, 
                 'rmvLowFrq':False}
 
-    
-    #years = np.unique(data['member_id'].values)
-    #sym_list = []
-    #asym_list = []
-    #bg_list = []
-
-    #for yr in years[:]:
-    #    data_yr = data.sel(member_id=yr)
-    #    if data_yr.time.size > 0:
-    #        sym_yr, asym_yr, background_yr = wf_analysis(data_yr, **opt)
-    #        sym_list.append(sym_yr)
-    #        asym_list.append(asym_yr)
-    #        bg_list.append(background_yr)
-
     sym_yr, asym_yr, background_yr = wf_analysis(data.compute(), **opt)
     print(sym_yr,asym_yr,background_yr)
-    # Average over years
-    #symComponent = xr.concat(sym_list, dim='member_id') #.mean(dim='member_id')
-    #asymComponent = xr.concat(asym_list, dim='member_id') #.mean(dim='member_id')
-    #background = xr.concat(bg_list, dim='member_id')
 
-    sym_yr.to_netcdf(f'./amip/{model}_symComponents.nc',mode='w')
-    asym_yr.to_netcdf(f'./amip/{model}_asymComponents.nc',mode='w')
-    background_yr.to_netcdf(f'./amip/{model}_backgroundComponents.nc',mode='w')
-    #ngcm_Component = xr.Dataset(dict(symmetric=sym_yr,asymmetric=asym_yr,background=background_yr))     
-    #ngcm_Component.to_netcdf('./amip/amip_Components.nc',mode='w')
+    sym_yr.to_netcdf(f'./data/{model}_symComponents.nc',mode='w')
+    asym_yr.to_netcdf(f'./data/{model}_asymComponents.nc',mode='w')
+    background_yr.to_netcdf(f'./data/{model}_backgroundComponents.nc',mode='w')
 
     #
     # Plot averaged results
     #
-    outPlotName = "amip_pminuse_symmetric_plot.png"
-    plot_normalized_symmetric_spectrum(symComponent.mean('member_id'), outPlotName)
+    #outPlotName = "amip_pminuse_symmetric_plot.png"
+    #plot_normalized_symmetric_spectrum(symComponent.mean('member_id'), outPlotName)
 
-    outPlotName = "amip_pminuse_asymmetric_plot.png"
-    plot_normalized_asymmetric_spectrum(asymComponent.mean('member_id'), outPlotName)
+    #outPlotName = "amip_pminuse_asymmetric_plot.png"
+    #plot_normalized_asymmetric_spectrum(asymComponent.mean('member_id'), outPlotName)
 

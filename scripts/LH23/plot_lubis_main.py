@@ -656,20 +656,20 @@ def preprocess(file):
 
 # %%
 def main():
-    test_directory = './' # Add file
-    era5 = preprocess(sorted(glob.glob(f'{test_directory}z1/z1_ERA5_*.nc'))[-1])
+    test_directory = './'# Add file
+    era5 = preprocess(sorted(glob.glob(f'{test_directory}/z1/z1_ERA5_*.nc'))[-1])
 
-    files = sorted(glob.glob(f'{test_directory}z1/*ua_CMIP6*.nc'))
+    files = sorted(glob.glob(f'{test_directory}/z1/*ua_CMIP6*.nc'))
     amip = [preprocess(files[i]) for idx, i in enumerate(range(len(files))) if 'ua_CMIP6' in files[i]]
     amip = xr.concat(amip, dim='member_id')
     amip.coords['member_id'] = np.arange(1,len(files)+1,step=1)
 
-    files = sorted(glob.glob(f'{test_directory}z1/*csp*.nc'))
+    files = sorted(glob.glob(f'{test_directory}/z1/*csp*.nc'))
     ngcm = [preprocess(files[i]) for idx, i in enumerate(range(len(files))) if '2.8' in files[i]]
     ngcm = xr.concat(ngcm, dim='member_id')
     ngcm.coords['member_id'] = np.arange(1,38,step=1)
 
-    files = sorted(glob.glob(f'{test_directory}z1/*eastward*.nc'))
+    files = sorted(glob.glob(f'{test_directory}/z1/*eastward*.nc'))
     ace2 = [preprocess(files[i]) for idx, i in enumerate(range(len(files))) if 'eastward' in files[i]]
     ace2 = xr.concat(ace2, dim='member_id')
     ace2.coords['member_id'] = np.arange(1,38,step=1)

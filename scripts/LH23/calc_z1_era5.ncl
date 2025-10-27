@@ -3,7 +3,7 @@ begin
 print("Reading the input file...")
 
 source = "ERA5"
-f1 = addfile("/project/tas1/itbaxter/aimip/benchmarking_ai_variability/data/era5/sh_uwind/u_anomalies_era5.1979-2020_nharm4.nc", "r")
+f1 = addfile("../../../Circulation-Benchmarking-AI-Emulators-data/era5/sh_uwind/u_anomalies_era5.1979-2020_nharm4.nc", "r")
 
 u = f1->u(time|:, {lat|-80:-20})
 printVarSummary(u)

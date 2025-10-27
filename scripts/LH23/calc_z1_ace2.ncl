@@ -1,7 +1,7 @@
 begin
 
 ; Define input directory and pattern
-input_dir = "../../data/ace2/sh_uwind/"
+input_dir = "../../../Circulation-Benchmarking-AI-Emulators-data/ace2/sh_uwind/"
 file_pattern = "*.nc"  ; Pattern to match files
 
 ; Get list of files in directory
@@ -44,7 +44,6 @@ do ifile = 0, nfiles-1
     printVarSummary(u)
 
     u@_FillValue = -999
-    duepy@_FillValue = -999
 
     print("Weighting latitude...")
 

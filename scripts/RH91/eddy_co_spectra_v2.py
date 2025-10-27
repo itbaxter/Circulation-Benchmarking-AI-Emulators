@@ -17,7 +17,18 @@ Updated May 2024 -- adapted for Python3, xarray, and with some modifications to 
 Tested using Python 3.12
 """
 # %%
-# Import required libraries for numerical computing, signal processing, interpolation, and plotting
+"""
+Eddy flux co-spectra (Hayashi 1971; Randel & Held 1991) with modular structure.
+
+- Command-line parser to specify data_dir and output_dir
+- Reader function to load datasets
+- Computational and plotting functions
+- main() to orchestrate execution
+"""
+
+import argparse
+import os
+from pathlib import Path
 import numpy as np
 import scipy.signal as ss
 import scipy.interpolate as si
@@ -28,10 +39,8 @@ from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib as mpl
 
-#import wavenumber_frequency_functions as wf
-#import logging
-
 from scipy.stats import linregress as _linregress
+import xarray as xr
 def linregress(da_y, da_x, dim=None):
     '''xarray-wrapped function of scipy.stats.linregress.
     Note the order of the input arguments x, y is reversed to the original scipy function.'''
@@ -56,58 +65,73 @@ def linregress(da_y, da_x, dim=None):
         r=r, p=p, stderr=stderr, predicted=predicted))
 
 # %%
-import xarray as xr
-#---ERA5
-dir = '../../../Circulation-Benchmarking-AI-Emulators-data/era5/'
-u_era5 = xr.open_dataset(dir + 'u250/u250_era5_1958_2023.nc')['u'].resample(time='1D').mean('time').isel(bnds=0) 
-u_era5
-
-# %%
-v_era5 = xr.open_dataset(dir + 'v250/v250_era5_1961_2001.nc')['v'].resample(time='1D').mean('time').isel(bnds=0) 
-v_era5
-
-# %%
-u_era5.close(),v_era5.close()  # Close datasets to free resources
-
-# %%
-
-files = sorted(glob.glob('../../../Circulation-Benchmarking-AI-Emulators-data/ace2/u250/eastward*.nc'))
-
-u_ace2 = xr.open_dataset(files[6])['u'] #ACE_READER(files[10],'eastward_wind_2').read().compute()
-u_ace2
-
-# %%
-files = sorted(glob.glob('../../../Circulation-Benchmarking-AI-Emulators-data/ace2/v250/northward*.nc'))
-
-v_ace2 = xr.open_dataset(files[6])['v'] #ACE_READER(files[10],'eastward_wind_2').read().compute()
-v_ace2
+def parse_args():
+    parser = argparse.ArgumentParser(description='Eddy co-spectra (RH91) analysis')
+    parser.add_argument('--data_dir', type=str, default=None,
+                        help='Base data directory (expects era5/, ace2/, ngcm/, amip/ subfolders). If None, uses script-relative ../../..-data')
+    parser.add_argument('--output_dir', type=str, default=None,
+                        help='Output directory for figures. If None, uses script-relative ../../plots')
+    parser.add_argument('--ace2_index', type=int, default=6, help='Index for ACE2 member files (default: 6)')
+    parser.add_argument('--ngcm_index', type=int, default=20, help='Index for NGCM member files (default: 20)')
+    return parser.parse_args()
 
 
-# %%
-files = sorted(glob.glob('../../../Circulation-Benchmarking-AI-Emulators-data/ngcm/u250/*ngcm*nc'))
-files
+def resolve_dir(passed: str | None, fallback: Path) -> Path:
+    if passed:
+        return Path(passed).expanduser().resolve()
+    return fallback.resolve()
 
-u_ngcm = xr.open_dataset(files[20])['v'].resample(time='1D').mean('time') #.sel(level=250) #.mean('latitude')
-u_ngcm
 
-# %%
-files = sorted(glob.glob('../../../Circulation-Benchmarking-AI-Emulators-data/ngcm/v250/*ngcm*nc'))
-print(files)
+def read_datasets(base_dir: Path, ace2_index: int = 6, ngcm_index: int = 20):
+    """Load datasets from a standardized directory layout under base_dir.
 
-v_ngcm = xr.open_dataset(files[20])['v'].resample(time='1D').mean('time') #.sel(level=250) #.mean('latitude')
-v_ngcm
+    Returns a dict with keys: u_era5, v_era5, u_ace2, v_ace2, u_ngcm, v_ngcm, u_amip, v_amip
+    """
+    ds = {}
 
-# %%
-file = '../../../Circulation-Benchmarking-AI-Emulators-data/amip/u250/ua_CMIP6_CESM2-WACCM_day_amip_1950-2016.nc'
+    # ERA5
+    era5_u = base_dir / 'era5/u250/u250_era5_1958_2023.nc'
+    era5_v = base_dir / 'era5/v250/v250_era5_1961_2001.nc'
+    if not era5_u.exists():
+        raise FileNotFoundError(f'Missing ERA5 u file: {era5_u}')
+    if not era5_v.exists():
+        raise FileNotFoundError(f'Missing ERA5 v file: {era5_v}')
+    ds['u_era5'] = xr.open_dataset(era5_u)['u'].resample(time='1D').mean('time').isel(bnds=0)
+    ds['v_era5'] = xr.open_dataset(era5_v)['v'].resample(time='1D').mean('time').isel(bnds=0)
 
-u_amip = xr.open_dataset(file).sel(plev=25000)['ua'].squeeze()
-u_amip
+    # ACE2
+    ace2_u_files = sorted(glob.glob(str(base_dir / 'ace2/u250/eastward*.nc')))
+    ace2_v_files = sorted(glob.glob(str(base_dir / 'ace2/v250/northward*.nc')))
+    if not ace2_u_files:
+        raise FileNotFoundError(f'No ACE2 u files under {base_dir / "ace2/u250"}')
+    if not ace2_v_files:
+        raise FileNotFoundError(f'No ACE2 v files under {base_dir / "ace2/v250"}')
+    if ace2_index >= len(ace2_u_files) or ace2_index >= len(ace2_v_files):
+        raise IndexError(f'ace2_index {ace2_index} out of range (u:{len(ace2_u_files)}, v:{len(ace2_v_files)})')
+    ds['u_ace2'] = xr.open_dataset(ace2_u_files[ace2_index])['u']
+    ds['v_ace2'] = xr.open_dataset(ace2_v_files[ace2_index])['v']
 
-# %%
-file = '../../../Circulation-Benchmarking-AI-Emulators-data/amip/v250/va_CMIP6_CESM2-WACCM_day_amip_1950-2016.nc'
+    # NGCM2.8
+    ngcm_u_files = sorted(glob.glob(str(base_dir / 'ngcm/u250/*ngcm*nc')))
+    ngcm_v_files = sorted(glob.glob(str(base_dir / 'ngcm/v250/*ngcm*nc')))
+    if not ngcm_u_files or not ngcm_v_files:
+        raise FileNotFoundError(f'No NGCM files under {base_dir / "ngcm"}')
+    if ngcm_index >= len(ngcm_u_files) or ngcm_index >= len(ngcm_v_files):
+        raise IndexError(f'ngcm_index {ngcm_index} out of range (u:{len(ngcm_u_files)}, v:{len(ngcm_v_files)})')
+    ds['u_ngcm'] = xr.open_dataset(ngcm_u_files[ngcm_index])['v'].resample(time='1D').mean('time')
+    ds['v_ngcm'] = xr.open_dataset(ngcm_v_files[ngcm_index])['v'].resample(time='1D').mean('time')
 
-v_amip = xr.open_dataset(file).sel(plev=25000)['va'].squeeze()
-v_amip
+    # AMIP (CESM2-WACCM example)
+    amip_u = base_dir / 'amip/u250/ua_CMIP6_CESM2-WACCM_day_amip_1950-2016.nc'
+    amip_v = base_dir / 'amip/v250/va_CMIP6_CESM2-WACCM_day_amip_1950-2016.nc'
+    if not amip_u.exists():
+        raise FileNotFoundError(f'Missing AMIP u file: {amip_u}')
+    if not amip_v.exists():
+        raise FileNotFoundError(f'Missing AMIP v file: {amip_v}')
+    ds['u_amip'] = xr.open_dataset(amip_u).sel(plev=25000)['ua'].squeeze()
+    ds['v_amip'] = xr.open_dataset(amip_v).sel(plev=25000)['va'].squeeze()
+
+    return ds
 
 
 # %%
@@ -395,7 +419,6 @@ def calc_co_spectra( x, y, dx, lat, dt, cmax = 50, nps = 50 ):
 
     # Get array dimensions
     t, l, j = np.shape( x )  # time, latitude, longitude
-    print(t, l, j)
     
     # Remove zonal mean from both variables to focus on eddy components
     # This isolates the wave-like (eddy) variations from the mean flow
@@ -412,7 +435,7 @@ def calc_co_spectra( x, y, dx, lat, dt, cmax = 50, nps = 50 ):
 
     # Process each latitude independently
     for i in range( l ):
-        #print("Doing: ", i) # Progress indicator
+        #print("Doing: ", i) 
         
         # Apply cosine latitude scaling for spherical coordinates
         # At higher latitudes, meridians converge, so effective dx is smaller
@@ -472,7 +495,6 @@ def process(u, v, years, season='DJFM', apply_window=True):
     c_spec = []
     
     for year in years[:]:
-        print(year)
         # Select data for the specified season
         if season == 'DJFM':
             u_sel = u.squeeze().sel(time=slice(f'{year}-12-01', f'{year+1}-03-31'))
@@ -617,34 +639,6 @@ def wrapper(ua,va,years=np.arange(1981, 2015, 1), season='DJFM'):
     p_spec.coords['c'] = C
     return p_spec / dc
 # %%
-era5_p_spec = wrapper(u_era5, v_era5, years=np.arange(1981, 2015, 1), season='DJFM')
-era5_p_spec
-
-# %%
-era5_p_spec_jjas = wrapper(u_era5, v_era5, years=np.arange(1981, 2015, 1), season='JJAS')
-era5_p_spec_jjas
-
-# %%
-ace2_p_spec = wrapper(u_ace2, v_ace2, years=np.arange(1981, 2015, 1), season='DJFM')
-ace2_p_spec
-
-# %%
-ace2_p_spec_jjas = wrapper(u_ace2, v_ace2, years=np.arange(1981, 2015, 1), season='JJAS')
-ace2_p_spec_jjas
-# %%
-amip_p_spec = wrapper(u_amip, v_amip, years=np.arange(1981, 2015, 1), season='DJFM')
-amip_p_spec
-
-# %%
-amip_p_spec_jjas = wrapper(u_amip, v_amip, years=np.arange(1981, 2015, 1), season='JJAS')
-amip_p_spec_jjas
-# %%
-ngcm_p_spec = wrapper(u_ngcm, v_ngcm, years=np.arange(1981, 2015, 1), season='DJFM')
-ngcm_p_spec
-# %%
-ngcm_p_spec_jjas = wrapper(u_ngcm, v_ngcm, years=np.arange(1981, 2015, 1), season='JJAS')
-ngcm_p_spec_jjas
-# %%
 # === Helper function for custom diverging colormap ===
 def build_diverging_cmap(cmap_neg, cmap_pos):
     colors1 = plt.get_cmap(cmap_pos)(np.linspace(0, 1, 128))
@@ -653,7 +647,7 @@ def build_diverging_cmap(cmap_neg, cmap_pos):
     return LinearSegmentedColormap.from_list('custom_div', np.vstack((colors2, white, colors1)))
 
 
-def plot_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='lat', lonkey='lon', year_range=None, c_range=(-10, 40), levels=None):
+def plot_panel(fig, ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='lat', lonkey='lon', year_range=None, c_range=(-10, 40), levels=None):
     ax.text(0.02, 0.9, letter, fontsize=28, fontweight='bold', transform=ax.transAxes)
 
     # Concatenate westward and eastward components along phase speed 
@@ -718,13 +712,12 @@ def plot_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='
     pos = ax.get_position()
     panel_center = (pos.y1 + pos.y0) / 2
     
-    # Use consistent positioning for all labels - horizontal offset and vertical center
     if letter in ['a', 'e']:
         ax.text(pos.x0-0.08, panel_center, season, 
-                transform=fig.transFigure,  # Use figure coordinates for consistent positioning
+                transform=fig.transFigure, 
                 rotation=90, 
-                va='center',  # Center vertically relative to panel
-                ha='center',  # Center horizontally
+                va='center',  
+                ha='center', 
                 weight='bold', 
                 fontsize=18)
     
@@ -733,10 +726,6 @@ def plot_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='
     Kmin = K.mean('year').where(K.mean('year') == (K.mean('year').where(K['c'] >= 1).min()),drop=True)
 
     ax.axvline(0, linewidth=0.8, c='k')
-    #if letter == 'a':
-    #    ax.set_title('DJFM', weight='bold', fontsize=16)
-    #elif letter == 'b':
-    #    ax.set_title('JJAS', weight='bold', fontsize=16)
     if letter in ['a', 'b', 'c', 'd']:
         ax.set_title(f'{title}', weight='bold', fontsize=18)
     else:
@@ -765,112 +754,37 @@ def plot_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='
     return p, pos 
 
 # %%
-fig  = plt.figure(figsize=(15,10))
+def plot_rh91_panels(dsets, specs, output_dir: Path):
+    fig  = plt.figure(figsize=(15,10))
 
-mpl.rcParams['font.family'] = 'sans-serif'
-mpl.rcParams['font.size'] = 16
+    mpl.rcParams['font.family'] = 'sans-serif'
+    mpl.rcParams['font.size'] = 16
 
-gs = GridSpec(2, 4, wspace=0.25,hspace=0.07,top=0.95,bottom=0.07,left=0.1,right=0.9)
+    gs = GridSpec(2, 4, wspace=0.25,hspace=0.07,top=0.95,bottom=0.07,left=0.1,right=0.9)
 
-levels = [-3, -2.5, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 2.5, 3]
+    levels = [-3, -2.5, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 2.5, 3]
 
-plot_panel(
-    ax=fig.add_subplot(gs[0,0]),
-    data=era5_p_spec,
-    winds=u_era5,
-    title='ERA5',
-    letter='a',
-    season='DJFM',
-    year_range=(1981, 2014),
-    levels=levels
-)
+    p, pos1 = plot_panel(fig, fig.add_subplot(gs[0,0]), specs['era5_DJFM'], dsets['u_era5'], 'ERA5', 'a', 'DJFM', year_range=(1981, 2014), levels=levels)
+    plot_panel(fig, fig.add_subplot(gs[0,1]), specs['amip_DJFM'], dsets['u_amip'], 'AMIP', 'b', 'DJFM', year_range=(1981, 2014), levels=levels)
+    plot_panel(fig, fig.add_subplot(gs[0,2]), specs['ace2_DJFM'], dsets['u_ace2'], 'ACE2-ERA5', 'c', 'DJFM', year_range=(1981, 2014), levels=levels)
+    p, pos_top_right = plot_panel(fig, fig.add_subplot(gs[0,3]), specs['ngcm_DJFM'], dsets['u_ngcm'], 'NGCM2.8', 'd', 'DJFM', year_range=(1981, 2014), levels=levels)
 
-plot_panel(
-    ax=fig.add_subplot(gs[0,1]),
-    data=amip_p_spec,
-    winds=u_amip,
-    title='AMIP',
-    letter='b',
-    season='DJFM',
-    year_range=(1981, 2014),
-    levels=levels
-)
+    plot_panel(fig, fig.add_subplot(gs[1,0]), specs['era5_JJAS'], dsets['u_era5'], '', 'e', 'JJAS', year_range=(1981, 2014), levels=levels)
+    plot_panel(fig, fig.add_subplot(gs[1,1]), specs['amip_JJAS'], dsets['u_amip'], '', 'f', 'JJAS', year_range=(1981, 2014), levels=levels)
+    plot_panel(fig, fig.add_subplot(gs[1,2]), specs['ace2_JJAS'], dsets['u_ace2'], '', 'g', 'JJAS', year_range=(1981, 2014), levels=levels)
+    p, pos_bottom_right = plot_panel(fig, fig.add_subplot(gs[1,3]), specs['ngcm_JJAS'], dsets['u_ngcm'], '', 'h', 'JJAS', year_range=(1981, 2014), levels=levels)
 
-plot_panel(
-    ax=fig.add_subplot(gs[0,2]),
-    data=ace2_p_spec,
-    winds=u_ace2,
-    title='ACE2-ERA5',
-    letter='c',
-    season='DJFM',
-    year_range=(1981, 2014),
-    levels=levels
-)
+    cax = fig.add_axes([pos_top_right.x1 + 0.02, (pos_bottom_right.y1 + pos_bottom_right.y0)/3, 0.02,(pos_top_right.y1 + pos_top_right.y0)*0.55-(pos_bottom_right.y1 + pos_bottom_right.y0)*0.3])
+    cbar = fig.colorbar(p, cax=cax, drawedges=True, orientation='vertical')
+    cbar.set_label(r'$\mathrm{u^{\prime} v^{\prime}\ [m^{2}\ s^{-2} \cdot \Delta c^{-1}}]$', fontsize=16)
+    cbar.ax.tick_params(labelsize=16)
 
-p, pos1 = plot_panel(
-    ax=fig.add_subplot(gs[0,3]),
-    data=ngcm_p_spec,
-    winds=u_ngcm,
-    title='NGCM2.8',
-    letter='d',
-    season='DJFM',
-    year_range=(1981, 2014),
-    levels=levels,
-)
-
-# --- JJAS
-plot_panel(
-    ax=fig.add_subplot(gs[1,0]),
-    data=era5_p_spec_jjas,
-    winds=u_era5,
-    title='',
-    letter='e',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels
-)
-
-plot_panel(
-    ax=fig.add_subplot(gs[1,1]),
-    data=amip_p_spec_jjas,
-    winds=u_amip,
-    title='',
-    letter='f',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels
-)
-
-plot_panel(
-    ax=fig.add_subplot(gs[1,2]),
-    data=ace2_p_spec_jjas,
-    winds=u_ace2,
-    title='',
-    letter='g',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels
-)
-
-p,pos0 = plot_panel(
-    ax=fig.add_subplot(gs[1,3]),
-    data=ngcm_p_spec_jjas,
-    winds=u_ngcm,
-    title='',
-    letter='h',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels,
-)
-
-cax = fig.add_axes([pos1.x1 + 0.02, (pos0.y1 + pos0.y0)/3, 0.02,(pos1.y1 + pos1.y0)*0.55-(pos0.y1 + pos0.y0)*0.3])
-cbar = fig.colorbar(p, cax=cax, drawedges=True, orientation='vertical')
-cbar.set_label(r'$\mathrm{u^{\prime} v^{\prime}\ [m^{2}\ s^{-2} \cdot \Delta c^{-1}}]$', fontsize=16)
-cbar.ax.tick_params(labelsize=16)
-
-plt.savefig('../../plots/Figure_2-RH91-v2.png', dpi=300)
+    out = output_dir / 'Figure_2-RH91-v2.png'
+    fig.savefig(out, dpi=300)
+    plt.close(fig)
+    return out
 # %%
-def plot_emfc_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='lat', lonkey='lon', year_range=None, c_range=(-10, 40), levels=None):
+def plot_emfc_panel(fig, ax, data, winds, title, letter, season='DJFM', ckey='c', latkey='lat', lonkey='lon', year_range=None, c_range=(-10, 40), levels=None):
     ax.text(0.01, 1.05, letter, fontsize=16, fontweight='bold', transform=ax.transAxes)
 
     # Apply contour plot
@@ -927,13 +841,12 @@ def plot_emfc_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', lat
     pos = ax.get_position()
     panel_center = (pos.y1 + pos.y0) / 2
     
-    # Use consistent positioning for all labels - horizontal offset and vertical center
     if letter in ['a', 'c', 'e', 'g']:
         ax.text(pos.x0-0.1, panel_center, title, 
-                transform=fig.transFigure,  # Use figure coordinates for consistent positioning
+                transform=fig.transFigure,  
                 rotation=90, 
-                va='center',  # Center vertically relative to panel
-                ha='center',  # Center horizontally
+                va='center', 
+                ha='center', 
                 weight='bold', 
                 fontsize=16)
     
@@ -964,107 +877,74 @@ def plot_emfc_panel(ax, data, winds, title, letter, season='DJFM', ckey='c', lat
     return p, pos 
 
 # %%
-fig  = plt.figure(figsize=(7.5,12))
+def plot_emfc_panels(dsets, specs, output_dir: Path):
+    fig  = plt.figure(figsize=(7.5,12))
 
-gs = GridSpec(4,2,wspace=0.2,hspace=0.35,top=0.95,bottom=0.08,left=0.15,right=0.85)
+    gs = GridSpec(4,2,wspace=0.2,hspace=0.35,top=0.95,bottom=0.08,left=0.15,right=0.85)
 
-levels = [-0.1,-0.08,-0.06,-0.04,-0.02,0.02,0.04,0.06,0.08,0.1]
+    levels = [-0.1,-0.08,-0.06,-0.04,-0.02,0.02,0.04,0.06,0.08,0.1]
 
-plot_emfc_panel(
-    ax=fig.add_subplot(gs[0,0]),
-    data=era5_p_spec,
-    winds=u_era5,
-    title='ERA5',
-    letter='a',
-    season='DJFM',
-    year_range=(1981, 2014),
-    levels=levels
-)
+    plot_emfc_panel(fig, fig.add_subplot(gs[0,0]), specs['era5_DJFM'], dsets['u_era5'], 'ERA5', 'a', 'DJFM', year_range=(1981, 2014), levels=levels)
+    plot_emfc_panel(fig, fig.add_subplot(gs[1,0]), specs['amip_DJFM'], dsets['u_amip'], 'AMIP', 'c', 'DJFM', year_range=(1981, 2014), levels=levels)
+    plot_emfc_panel(fig, fig.add_subplot(gs[2,0]), specs['ace2_DJFM'], dsets['u_ace2'], 'ACE2-ERA5', 'e', 'DJFM', year_range=(2002, 2009), levels=levels)
+    p, pos0 = plot_emfc_panel(fig, fig.add_subplot(gs[3,0]), specs['ngcm_DJFM'], dsets['u_ngcm'], 'NGCM2.8', 'g', 'DJFM', year_range=(2018, 2014), levels=levels)
 
-plot_emfc_panel(
-    ax=fig.add_subplot(gs[1,0]),
-    data=amip_p_spec,
-    winds=u_amip,
-    title='AMIP',
-    letter='c',
-    season='DJFM',
-    year_range=(1981, 2014),
-    levels=levels
-)
+    plot_emfc_panel(fig, fig.add_subplot(gs[0,1]), specs['era5_JJAS'], dsets['u_era5'], '', 'b', 'JJAS', year_range=(1960, 2022), levels=levels)
+    plot_emfc_panel(fig, fig.add_subplot(gs[1,1]), specs['amip_JJAS'], dsets['u_amip'], '', 'd', 'JJAS', year_range=(1981, 2014), levels=levels)
+    plot_emfc_panel(fig, fig.add_subplot(gs[2,1]), specs['ace2_JJAS'], dsets['u_ace2'], '', 'f', 'JJAS', year_range=(1981, 2014), levels=levels)
+    p, pos1 = plot_emfc_panel(fig, fig.add_subplot(gs[3,1]), specs['ngcm_JJAS'], dsets['u_ngcm'], '', 'h', 'JJAS', year_range=(1981, 2014), levels=levels)
 
-plot_emfc_panel(
-    ax=fig.add_subplot(gs[2,0,]),
-    data=ace2_p_spec,
-    winds=u_ace2,
-    title='ACE2-ERA5',
-    letter='e',
-    season='DJFM',
-    year_range=(2002, 2009),
-    levels=levels
-)
+    cax = fig.add_axes([pos1.x1 + 0.02, (pos1.y + pos1.y0)/2, 0.02, pos0.y1 - pos0.y0])
+    cbar = fig.colorbar(p, cax=cax, orientation='vertical')
+    cbar.set_label(r'$\mathrm{u^{\prime}$ (m/s$^2$)', fontsize=16)
+    cbar.ax.tick_params(labelsize=16)
 
-p, pos0 = plot_emfc_panel(
-    ax=fig.add_subplot(gs[3,0]),
-    data=ngcm_p_spec,
-    winds=u_ngcm,
-    title='NGCM2.8',
-    letter='g',
-    season='DJFM',
-    year_range=(2018, 2014),
-    levels=levels,
-)
-
-# --- JJAS
-plot_emfc_panel(
-    ax=fig.add_subplot(gs[0,1]),
-    data=era5_p_spec_jjas,
-    winds=u_era5,
-    title='',
-    letter='b',
-    season='JJAS',
-    year_range=(1960, 2022),
-    levels=levels
-)
-
-plot_emfc_panel(
-    ax=fig.add_subplot(gs[1,1]),
-    data=amip_p_spec_jjas,
-    winds=u_amip,
-    title='',
-    letter='d',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels
-)
-
-plot_emfc_panel(
-    ax=fig.add_subplot(gs[2,1]),
-    data=ace2_p_spec_jjas,
-    winds=u_ace2,
-    title='',
-    letter='f',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels
-)
-
-p, pos1 = plot_emfc_panel(
-    ax=fig.add_subplot(gs[3,1]),
-    data=ngcm_p_spec_jjas,
-    winds=u_ngcm,
-    title='',
-    letter='h',
-    season='JJAS',
-    year_range=(1981, 2014),
-    levels=levels,
-)
-
-cax = fig.add_axes([pos1.x1 + 0.02, (pos1.y + pos1.y0)/2, 0.02, pos0.y1 - pos0.y0])
-cbar = fig.colorbar(p, cax=cax, orientation='vertical')
-cbar.set_label(r'$\mathrm{u^{\prime}$ (m/s$^2$)', fontsize=16)
-cbar.ax.tick_params(labelsize=16)
+    out = output_dir / 'Figure_2-CH07-v2.png'
+    fig.savefig(out, dpi=300)
+    plt.close(fig)
+    return out
 
 
-plt.savefig('../../plots/Figure_2-CH07-v2.png', dpi=300)
+def run_analysis(dsets):
+    """Compute phase-speed spectra for each dataset and season."""
+    specs = {}
+    # ERA5
+    specs['era5_DJFM'] = wrapper(dsets['u_era5'], dsets['v_era5'], years=np.arange(1981, 2015, 1), season='DJFM')
+    specs['era5_JJAS'] = wrapper(dsets['u_era5'], dsets['v_era5'], years=np.arange(1981, 2015, 1), season='JJAS')
+    # ACE2
+    specs['ace2_DJFM'] = wrapper(dsets['u_ace2'], dsets['v_ace2'], years=np.arange(1981, 2015, 1), season='DJFM')
+    specs['ace2_JJAS'] = wrapper(dsets['u_ace2'], dsets['v_ace2'], years=np.arange(1981, 2015, 1), season='JJAS')
+    # AMIP
+    specs['amip_DJFM'] = wrapper(dsets['u_amip'], dsets['v_amip'], years=np.arange(1981, 2015, 1), season='DJFM')
+    specs['amip_JJAS'] = wrapper(dsets['u_amip'], dsets['v_amip'], years=np.arange(1981, 2015, 1), season='JJAS')
+    # NGCM
+    specs['ngcm_DJFM'] = wrapper(dsets['u_ngcm'], dsets['v_ngcm'], years=np.arange(1981, 2015, 1), season='DJFM')
+    specs['ngcm_JJAS'] = wrapper(dsets['u_ngcm'], dsets['v_ngcm'], years=np.arange(1981, 2015, 1), season='JJAS')
+    return specs
+
+
+def main():
+    args = parse_args()
+    here = Path(__file__).resolve().parent
+    default_data = (here / '../../../Circulation-Benchmarking-AI-Emulators-data')
+    default_out = (here / '../../plots')
+    data_dir = resolve_dir(args.data_dir, default_data)
+    output_dir = resolve_dir(args.output_dir, default_out)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f'Data dir: {data_dir}')
+    print(f'Output dir: {output_dir}')
+
+    dsets = read_datasets(data_dir, ace2_index=args.ace2_index, ngcm_index=args.ngcm_index)
+    specs = run_analysis(dsets)
+
+    rh91_path = plot_rh91_panels(dsets, specs, output_dir)
+    print(f'Saved RH91 figure: {rh91_path}')
+    ch07_path = plot_emfc_panels(dsets, specs, output_dir)
+    print(f'Saved CH07 figure: {ch07_path}')
+
+
+if __name__ == '__main__':
+    main()
 # %%
 

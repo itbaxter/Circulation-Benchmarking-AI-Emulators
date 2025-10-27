@@ -6,6 +6,14 @@ import wavenumber_frequency_functions as wf
 import matplotlib as mpl
 
 import matplotlib.pyplot as plt
+import argparse
+
+# %%
+def parse_args():
+    parser = argparse.ArgumentParser(description='Eddy co-spectra (RH91) analysis')
+    parser.add_argument('--data_dir', type=str, default=None,
+                        help='Base data directory (expects era5/, ace2/, ngcm/, amip/ subfolders). If None, uses script-relative ../../..-data')
+    return parser.parse_args()
 
 # %%
 def wf_analysis(x, **kwargs):
@@ -127,11 +135,11 @@ if __name__ == "__main__":
     #
     # input file -- could make this a CLI argument
     #
-    #fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/ace2_era5_pminuse_rate_mjo_full_1.000000.nc" 
-    fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/ngcm_pminuse_rate_full.nc" 
+    args = parse_args()
+    fili = f"{args.data_dir}/ace2/pr/ngcm_pminuse_rate_full.nc" 
     vari = "P_minus_E_rate"
     #
-    # Loading data ... example is very simple
+    # Loading data ... 
     #
     data = get_data(fili, vari)  # returns OLR
     print(data)
@@ -165,15 +173,15 @@ if __name__ == "__main__":
             sym_list.append(sym_yr)
             asym_list.append(asym_yr)
             bg_list.append(background_yr)
-            background_yr.to_netcdf(f'./ngcm/ngcm_background_{yr}.nc')
+            background_yr.to_netcdf(f'./data/ngcm_background_{yr}.nc')
 
     # Average over years
-    symComponent = xr.concat(sym_list, dim='member_id') #.mean(dim='member_id')
-    asymComponent = xr.concat(asym_list, dim='member_id') #.mean(dim='member_id')
+    symComponent = xr.concat(sym_list, dim='member_id') 
+    asymComponent = xr.concat(asym_list, dim='member_id') 
     background = xr.concat(bg_list, dim='member_id')
 
-    ngcm_Component = xr.concat([symComponent,asymComponent],dim='component') #xr.Dataset(dict(symComponent=symComponent,asymComponent=asymComponent))
-    ngcm_Component.to_netcdf('./ngcm/ngcm_Components.nc',mode='w')
+    ngcm_Component = xr.concat([symComponent,asymComponent],dim='component') 
+    ngcm_Component.to_netcdf('./data/ngcm_Components.nc',mode='w')
 
     #
     # Plot averaged results

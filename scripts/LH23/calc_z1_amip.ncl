@@ -1,7 +1,7 @@
 begin
 
 ; Define input directory and pattern
-input_dir = "/project/tas1/itbaxter/aimip/benchmarking_ai_variability/data/amip/sh_uwind/"
+input_dir = "../../../Circulation-Benchmarking-AI-Emulators-data/amip/sh_uwind/"
 file_pattern = "ua_CMIP6*1979*.nc"  ; Pattern to match files
 
 ; Get list of files in directory

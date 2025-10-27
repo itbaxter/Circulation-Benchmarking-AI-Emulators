@@ -7,6 +7,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import glob as glob
 import xesmf as xe
+import argparse
+
+# %%
+def parse_args():
+    parser = argparse.ArgumentParser(description='Eddy co-spectra (RH91) analysis')
+    parser.add_argument('--data_dir', type=str, default=None,
+                        help='Base data directory (expects era5/, ace2/, ngcm/, amip/ subfolders). If None, uses script-relative ../../..-data')
+    return parser.parse_args()
 
 # %%
 def wf_analysis(x, **kwargs):
@@ -117,19 +125,11 @@ def plot_normalized_asymmetric_spectrum(s, ofil=None):
 
 class XESMFRegridder:
     def __init__(self, ds_out, method='bilinear', periodic=False, **kwargs):
-        #self.regridder = xe.Regridder(ds_in, ds_out, method, periodic, **kwargs)
         self.ds_out = ds_out
         self.method = method
         print('Starting')
 
     def regrid(self,ds):
-        #if 'lat_bnds' not in list(ds.coords.keys()):
-        #    ds = ds.expand_dims({'bnds':[1,2]})
-        
-        #    ds = self.add_lat_lon_bounds(ds)
-        #if len(ds['lat_bnds'].dims) > 2:
-        #    ds = self.add_lat_lon_bounds(ds) 
-        #print(ds)
         regridder = xe.Regridder(ds, self.ds_out, self.method)
         dr_out = regridder(ds, keep_attrs=True)
 
@@ -184,108 +184,48 @@ def get_data(filename, variablename):
 
 
 # %%
-"""
-fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/ngcm_pminuse_rate_full.nc"
-ngcm = xr.open_dataset(fili)
-
-dims = list(ngcm.dims)
-dim1 = [d for d in dims if 'lat' in d][0]
-dim2 = [d for d in dims if 'lon' in d][0]
-print(dim1,dim2)
-resolution = f'{len(ngcm[dim1])}x{len(ngcm[dim2])}'
-print(resolution)
-
-ds_out = xr.Dataset(
-    {
-        "lat": (["lat"], ngcm[dim1].data, {"units": "degrees_north"}),
-        "lon": (["lon"], ngcm[dim2].data, {"units": "degrees_east"}),
-    }
-)
-
-#fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/ace2_era5_pminuse_rate_mjo_full_1.000000.nc" 
-fili = sorted(glob.glob("/project2/tas1/abacus/data1/tas/archive/Reanalysis/ERA5/mtpr/era5_mtpr_*_1x1.nc"))
-vari = "avg_tprate"
-#
-# Loading data ... example is very simple
-#
-data = get_data(fili, vari, ds_out)  # returns OLR
-print(data)
-
-data.to_netcdf('/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/era5_pminuse_rate_full.nc')
-"""
-# %%
-
-#fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/ace2_era5_pminuse_rate_mjo_full_1.000000.nc" 
-fili = "/project2/tas1/itbaxter/NeuralGCM_Decadal_Simulations/data/processed/MJO/era5_pminuse_rate_full.nc" 
-vari = "avg_tprate"
-#
-# Loading data ... example is very simple
-#
-data = get_data(fili, vari)  # returns OLR
-# %%
-#
-# Options ... right now these only go into wk.spacetime_power()
-#
-latBound = (-10,10)  # latitude bounds for analysis
-spd      = 4    # SAMPLES PER DAY
-nDayWin  = 96   # Wheeler-Kiladis [WK] temporal window length (days)
-nDaySkip = 15  # time (days) between temporal windows [segments]
-                # negative means there will be overlapping temporal segments
-twoMonthOverlap = 50
-opt      = {'segsize': nDayWin, 
-            'noverlap': twoMonthOverlap, 
-            'spd': spd, 
-            'latitude_bounds': latBound, 
-            'dosymmetries': True, 
-            'rmvLowFrq':True}
+if __name__ == "__main__":
+    args = parse_args()
+    fili = f"{args.data_dir}/ace2/pr//era5_pminuse_rate_full.nc" 
+    vari = "avg_tprate"
+    #
+    # Loading data ... 
+    #
+    data = get_data(fili, vari)  # returns OLR
+    # %%
+    #
+    # Options ... right now these only go into wk.spacetime_power()
+    #
+    latBound = (-10,10)  # latitude bounds for analysis
+    spd      = 4    # SAMPLES PER DAY
+    nDayWin  = 96   # Wheeler-Kiladis [WK] temporal window length (days)
+    nDaySkip = 15  # time (days) between temporal windows [segments]
+                    # negative means there will be overlapping temporal segments
+    twoMonthOverlap = 50
+    opt      = {'segsize': nDayWin, 
+                'noverlap': twoMonthOverlap, 
+                'spd': spd, 
+                'latitude_bounds': latBound, 
+                'dosymmetries': True, 
+                'rmvLowFrq':True}
 
 
-# If your data is in an xarray DataArray
-seasonal_cycle = data.groupby('time.dayofyear').mean()
-data_detrend = data.groupby('time.dayofyear') - seasonal_cycle
+    seasonal_cycle = data.groupby('time.dayofyear').mean()
+    data_detrend = data.groupby('time.dayofyear') - seasonal_cycle
 
-#data_detrend = remove_low_frequency(detrend_along_time(data))
-symComponent, asymComponent, background  = wf_analysis(data_detrend.sel(time=slice('2018-01-01','2023-12-31')),**opt)
-symComponent, asymComponent
-print(background,symComponent,asymComponent)
+    symComponent, asymComponent, background  = wf_analysis(data_detrend.sel(time=slice('2018-01-01','2023-12-31')),**opt)
+    symComponent, asymComponent
+    print(background,symComponent,asymComponent)
 
-background.to_netcdf('./ngcm/era5_background.nc')
+    background.to_netcdf('./ngcm/era5_background.nc')
 
-# %%
-era5_out = xr.concat([symComponent,asymComponent, background],dim='component')
-era5_out.to_netcdf('./ngcm/era5_wk_Components.nc')
+    # %%
+    era5_out = xr.concat([symComponent,asymComponent, background],dim='component')
+    era5_out.to_netcdf('./ngcm/era5_wk_Components.nc')
 
-# %%
-outPlotName = "era5_pminuse_symmetric_plot.png"
-plot_normalized_symmetric_spectrum(symComponent, outPlotName)
+    # %%
+    outPlotName = "era5_pminuse_symmetric_plot.png"
+    plot_normalized_symmetric_spectrum(symComponent, outPlotName)
 
-outPlotName = "era5_pminuse_asymmetric_plot.png"
-plot_normalized_asymmetric_spectrum(asymComponent, outPlotName)
-# %%
-
-# Check what your function actually does
-test_data = data.sel(time=slice('2018-01-01','2018-12-31'))
-before = test_data.copy()
-after = remove_low_frequency(detrend_along_time(test_data))
-
-# Plot spectrum before and after to verify filtering
-import matplotlib.pyplot as plt
-from scipy import signal
-
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-
-# Average over lat/lon for simplicity
-before_avg = before.mean(['lat', 'lon'])
-after_avg = after.mean(['lat', 'lon'])
-
-# Calculate periodogram
-f_before, pxx_before = signal.periodogram(before_avg, fs=spd)
-f_after, pxx_after = signal.periodogram(after_avg, fs=spd)
-
-# Plot
-ax1.loglog(f_before, pxx_before)
-ax1.set_title('Before filtering')
-ax2.loglog(f_after, pxx_after)
-ax2.set_title('After filtering')
-plt.tight_layout()
-# %%
+    outPlotName = "era5_pminuse_asymmetric_plot.png"
+    plot_normalized_asymmetric_spectrum(asymComponent, outPlotName)

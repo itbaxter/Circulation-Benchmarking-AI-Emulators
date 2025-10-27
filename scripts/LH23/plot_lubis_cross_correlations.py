@@ -226,7 +226,7 @@ def preprocess(file):
 
 def main():
     """Main execution function."""
-    directory = './' #'/scratch/midway2/itbaxter/NeuralGCM_Decadal_Simulations/scripts/circulation_variability/PAM/'
+    directory = './' 
     print("Loading ERA5 data...")
     era5 = preprocess(sorted(glob.glob(f'{directory}/z1/z1_ERA5_*.nc'))[-1])
 

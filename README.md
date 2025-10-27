@@ -43,5 +43,5 @@ The large-scale circulation in the Southern Hemisphere is dominated by the South
 
 
 
-[QBO]: https://github.com/itbaxter/Circulation-Benchmarking-AI-Emulators/plots/qbo_time_series-2member.png "QBO Time Series"
+[QBO]: https://github.com/itbaxter/Circulation-Benchmarking-AI-Emulators/tree/main/plots/qbo_time_series-2member.png "QBO Time Series"
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) 

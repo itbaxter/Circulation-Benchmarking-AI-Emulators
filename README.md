@@ -16,7 +16,9 @@ Python3 and Bash used to run code:
 
 ## Quick run Guide
 To recreate the figures first download and unzip the input data files from the Zenodo archive.
+
 Then run bash script: "./scripts/run_scripts.sh --<path to zenodo directory>". 
+
 This will put all figures (in png files) in the plots directory.
 
 ## Metrics

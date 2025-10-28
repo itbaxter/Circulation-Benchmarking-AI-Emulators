@@ -133,10 +133,10 @@ def get_data(filename, variablename):
 
 if __name__ == "__main__":
     #
-    # input file -- could make this a CLI argument
+    # input file 
     #
     args = parse_args()
-    fili = f"{args.data_dir}/ace2/pr/ngcm_pminuse_rate_full.nc" 
+    fili = f"{args.data_dir}/ngcm/pr/ngcm_pminuse_rate_tropics.nc" 
     vari = "P_minus_E_rate"
     #
     # Loading data ... 
@@ -183,12 +183,4 @@ if __name__ == "__main__":
     ngcm_Component = xr.concat([symComponent,asymComponent],dim='component') 
     ngcm_Component.to_netcdf('./data/ngcm_Components.nc',mode='w')
 
-    #
-    # Plot averaged results
-    #
-    outPlotName = "ngcm_pminuse_symmetric_plot.png"
-    plot_normalized_symmetric_spectrum(symComponent.mean('member_id'), outPlotName)
-
-    outPlotName = "ngcm_pminuse_asymmetric_plot.png"
-    plot_normalized_asymmetric_spectrum(asymComponent.mean('member_id'), outPlotName)
 

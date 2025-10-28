@@ -114,13 +114,11 @@ if __name__ == "__main__":
 
         # Load data
         data = get_data(fili, vari)  # returns DataArray(time, lat, lon)
-        print(data)
-
         #
         # Options for wf_analysis
         #
         latBound = (-15, 15)   # latitude bounds
-        spd = 4               # samples per day
+        spd = 1               # samples per day
         nDayWin = 96          # temporal window length (days)
         twoMonthOverlap = -65  # overlap size
 
@@ -159,5 +157,4 @@ if __name__ == "__main__":
         #outPlotName = f"ace2_pratesfc_{i:03.0f}_asymmetric_plot.png"
         #plot_normalized_asymmetric_spectrum(asymComponent, outPlotName)
 
-
-    print(symComponent)
+# %%

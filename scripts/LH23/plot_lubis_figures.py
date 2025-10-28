@@ -15,8 +15,11 @@ from eofs.xarray import Eof
 from scipy.signal import detrend
 import scipy.signal as sig
 from scipy.stats import chi2
+import pandas as pd
 
 import gc
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # %%
 def print_memory_usage(stage):
@@ -43,7 +46,7 @@ def compute_leading_pc_projection(u_anomalies, lat_coord='lat', time_coord='time
     """
 
     # Area weight using cosine of latitude
-    print(u_anomalies) #, eof1_normalized)
+    #, eof1_normalized)
     weights = np.cos(np.deg2rad(u_anomalies[lat_coord]))
 
     # Initialize EOF solver with cosine latitude weights
@@ -338,7 +341,6 @@ def main(
 
 ):
     # detrend and remove annual cycle
-    print(forecast)
     forecast_nino34 = forecast #_detrend_no_annual(forecast)
 
     if 'member_id' in forecast_nino34.dims:
@@ -350,7 +352,6 @@ def main(
 
     if normalize_variance:
         # Normalize the spectra to have unit variance
-        print("Normalizing spectra to unit variance")
         Pxx /= np.max(Pxx)
     
     # Estimating AR1 correlation using our reference
@@ -385,7 +386,6 @@ def main(
 def project_onto_eof(ds):
     u = ds.sel(lat=slice(-80, -20)).squeeze()
     #u = (u.groupby('time.dayofyear') - u.groupby('time.dayofyear').mean('time')).squeeze
-    print(u)
 
     wgt_u = np.sqrt(np.cos(np.deg2rad(u.lat)))
     solver = Eof(u.transpose('time','lat'), weights=wgt_u)
@@ -398,7 +398,6 @@ def compute_modes(file,dset='NGCM1',grab='all'):
     #if dset == 'AMIP':
     ds = xr.open_dataset(file).squeeze() 
 
-    print(ds)
     key = list(ds.keys())
     var = {'NGCM1':'__xarray_dataarray_variable__',
             'NGCM2':'__xarray_dataarray_variable__',
@@ -567,7 +566,7 @@ def compute_modes_v2(z1):
                             vectorize= True)
     r.coords['lag'] = np.arange(-max_lag,max_lag+1)
     r
-
+    
     z2z1 = xr.apply_ufunc(lead_lag_correlation,
                             pcs.sel(mode=1),
                             pcs.sel(mode=0),
@@ -592,7 +591,7 @@ def compute_modes_v2(z1):
         return xr.Dataset(dict(z2z1=z2z1, z1z1=z1z1, pcs=pcs))
 
 # %%
-def create_lubis_figure_5c(era5_data, amip_data, ace2_data, ngcm_data, save_path=None):
+def create_lubis_cross_correlations(era5_data, amip_data, ace2_data, ngcm_data, save_path=None):
     """
     Create a clean four-panel figure with shared colorbar matching Lubis et al. (2023) Figure 5c style.
     
@@ -768,7 +767,7 @@ def main():
     print("Creating figure...")
     save_path = '../../plots/Lubis_cross-EOF_feedbacks.png'
     fig = create_lubis_cross_correlations(era5_cross, amip_cross, ace2_cross, ngcm_cross,
-                                         amip, ace2, ngcm, save_path)
+                                        save_path)
     plt.show()
     
     print(f"Figure saved to {save_path}")
@@ -776,4 +775,3 @@ def main():
 # %%
 if __name__ == '__main__':
     main()
-

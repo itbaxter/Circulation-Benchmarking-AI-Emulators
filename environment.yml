@@ -1,0 +1,17 @@
+name: circ-bench
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - xarray
+  - matplotlib
+  - scipy
+  - eofs
+  - psutil
+  - xesmf
+  - cartopy
+  - netcdf4
+  - pip
+  - pip:
+    - tqdm

@@ -144,7 +144,6 @@ if __name__ == "__main__":
     # Loading data ... 
     #
     data = get_data(fili, vari)  # returns OLR
-    print(data)
 
     #
     # Options ... right now these only go into wk.spacetime_power()

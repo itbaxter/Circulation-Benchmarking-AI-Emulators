@@ -17,6 +17,8 @@ import scipy.signal as sig
 from scipy.stats import chi2
 import pandas as pd
 import gc
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # %%
 def print_memory_usage(stage):
@@ -257,7 +259,6 @@ def plot_main(
 
 ):
     # detrend and remove annual cycle
-    print(forecast)
     forecast_nino34 = forecast #_detrend_no_annual(forecast)
 
     if 'member_id' in forecast_nino34.dims:
@@ -269,7 +270,6 @@ def plot_main(
 
     if normalize_variance:
         # Normalize the spectra to have unit variance
-        print("Normalizing spectra to unit variance")
         Pxx /= np.max(Pxx)
     
     # Estimating AR1 correlation using our reference
@@ -647,7 +647,6 @@ def create_lubis_four_panel_simple(era5, amip, ace2, ngcm):
 
 def preprocess(file):
         eof_results = xr.open_dataset(file, decode_times=False).squeeze()
-        print(eof_results)
         eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D')
         z1 = eof_results['z1'] #.dropna('time')
         z1.coords['mode'] = [0,1]

@@ -186,7 +186,8 @@ def get_data(filename, variablename):
 # %%
 if __name__ == "__main__":
     args = parse_args()
-    fili = f"{args.data_dir}/ace2/pr//era5_pminuse_rate_full.nc" 
+    data_dir = args.data_dir
+    fili = f"{data_dir}/era5/pr/era5_pminuse_rate_full.nc" 
     vari = "avg_tprate"
     #
     # Loading data ... 
@@ -215,17 +216,11 @@ if __name__ == "__main__":
 
     symComponent, asymComponent, background  = wf_analysis(data_detrend.sel(time=slice('2018-01-01','2023-12-31')),**opt)
     symComponent, asymComponent
-    print(background,symComponent,asymComponent)
 
-    background.to_netcdf('./ngcm/era5_background.nc')
-
-    # %%
-    era5_out = xr.concat([symComponent,asymComponent, background],dim='component')
-    era5_out.to_netcdf('./ngcm/era5_wk_Components.nc')
+    background.to_netcdf('./data/era5_background.nc')
 
     # %%
-    outPlotName = "era5_pminuse_symmetric_plot.png"
-    plot_normalized_symmetric_spectrum(symComponent, outPlotName)
+    era5_out = xr.concat([symComponent,asymComponent],dim='component')
+    era5_out.to_netcdf('./data/era5_wk_Components.nc')
 
-    outPlotName = "era5_pminuse_asymmetric_plot.png"
-    plot_normalized_asymmetric_spectrum(asymComponent, outPlotName)
+# %%

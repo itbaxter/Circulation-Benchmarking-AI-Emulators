@@ -8,6 +8,9 @@ from scipy.signal import correlate
 from matplotlib.gridspec import GridSpec
 import pandas as pd
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 # %%
 
 def lead_lag_correlation(data1, data2, max_lag=None):
@@ -217,7 +220,6 @@ def create_lubis_cross_correlations(era5_cross, amip_cross, ace2_cross, ngcm_cro
 
 def preprocess(file):
         eof_results = xr.open_dataset(file, decode_times=False).squeeze()
-        print(eof_results)
         eof_results.coords['time'] = pd.date_range('1981-01-01', periods=len(eof_results.time), freq='D')
         z1 = eof_results['z1'] #.dropna('time')
         z1.coords['mode'] = [0,1]

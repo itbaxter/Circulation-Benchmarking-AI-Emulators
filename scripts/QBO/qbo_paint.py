@@ -79,6 +79,7 @@ def qbo_comparison(data_dir: str, output_dir: str):
     amip_index: int = 20
     output_file: str = f'{output_dir}/qbo_comparison.png'
 
+    print('Reading in files...')
     # NGCM2.8/ACE2 stack
     csp_files = sorted(glob.glob(csp_pattern))
     if len(csp_files) == 0:
@@ -106,6 +107,7 @@ def qbo_comparison(data_dir: str, output_dir: str):
     amip.coords['plev'] = amip.coords['plev'] / 100  # Convert to hPa
     amip.coords['time'] = amip['time'].astype('datetime64[M]')
 
+    print('Creating plot...')
     # Plot
     fig = plt.figure(figsize=(7.5, 6))
     gs = GridSpec(3, 1, height_ratios=[1, 1, 1], hspace=0.4)

@@ -904,7 +904,7 @@ def plot_emfc_panels(dsets, specs, output_dir: Path):
     plt.close(fig)
     return out
 
-
+# %%
 def run_analysis(dsets):
     """Compute phase-speed spectra for each dataset and season."""
     specs = {}
@@ -922,14 +922,17 @@ def run_analysis(dsets):
     specs['ngcm_JJAS'] = wrapper(dsets['u_ngcm'], dsets['v_ngcm'], years=np.arange(1981, 2015, 1), season='JJAS')
     return specs
 
+# %%
+def main(default_data=('../../../Circulation-Benchmarking-AI-Emulators-data'),
+         default_out=('../../plots')):
 
-def main():
-    args = parse_args()
-    here = Path(__file__).resolve().parent
-    default_data = (here / '../../../Circulation-Benchmarking-AI-Emulators-data')
-    default_out = (here / '../../plots')
-    data_dir = resolve_dir(args.data_dir, default_data)
-    output_dir = resolve_dir(args.output_dir, default_out)
+    if default_data is not None and default_out is not None:
+        data_dir = Path(default_data)
+        output_dir = Path(default_out)
+    else:
+        args = parse_args()
+        data_dir = args.data_dir
+        output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f'Data dir: {data_dir}')
@@ -943,7 +946,7 @@ def main():
     ch07_path = plot_emfc_panels(dsets, specs, output_dir)
     print(f'Saved CH07 figure: {ch07_path}')
 
-
+# %%
 if __name__ == '__main__':
     main()
 # %%
